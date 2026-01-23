@@ -7,31 +7,20 @@
  * - processOCR: Process image OCR using Gemini Vision
  */
 
-const { transcribeFromUrl } = require('../services/elevenLabsService');
+const { transcribeAudio } = require('../services/elevenLabsService');
 const { createChatResponse } = require('../services/openAIService');
 const { extractTextFromImage } = require('../services/geminiImageService');
 
-// Language mapping for ElevenLabs
-const LANGUAGE_MAP = {
-    'en': 'en',
-    'ru': 'ru',
-    'es': 'es',
-    'uk': 'uk',
-    'pt': 'pt',
-};
 
 /**
  * Transcribe audio for a note
- * Expects: noteId
+ * Expects: noteId, language (optional, auto-detect if not provided)
  * Returns: { transcript, languageCode }
  */
 Parse.Cloud.define('transcribeAudio', async (request) => {
-    const user = request.user;
-    if (!user) {
-        throw new Parse.Error(Parse.Error.OPERATION_FORBIDDEN, 'User required');
-    }
+    
 
-    const { noteId } = request.params;
+    const { noteId, language } = request.params;
     if (!noteId) {
         throw new Parse.Error(Parse.Error.INVALID_VALUE, 'noteId is required');
     }
@@ -40,7 +29,6 @@ Parse.Cloud.define('transcribeAudio', async (request) => {
 
     // Get note
     const query = new Parse.Query('Note');
-    query.equalTo('user', user);
     const note = await query.get(noteId, { useMasterKey: true });
 
     if (!note) {
@@ -57,14 +45,9 @@ Parse.Cloud.define('transcribeAudio', async (request) => {
     await note.save(null, { useMasterKey: true });
 
     try {
-        // Get language code for transcription
-        const noteLanguage = note.get('language') || 'en';
-        const languageCode = LANGUAGE_MAP[noteLanguage] || 'en';
-
         // Transcribe audio
-        const result = await transcribeFromUrl({
+        const result = await transcribeAudio({
             audioUrl: audioFileUrl,
-            languageCode: languageCode,
         });
 
         // Update note with transcript
@@ -76,7 +59,6 @@ Parse.Cloud.define('transcribeAudio', async (request) => {
 
         return {
             transcript: result.text,
-            languageCode: result.languageCode,
         };
     } catch (error) {
         console.error(`[AI] Transcription failed for note: ${noteId}`, error);
@@ -121,11 +103,9 @@ Parse.Cloud.define('generateSummary', async (request) => {
         throw new Parse.Error(Parse.Error.INVALID_VALUE, 'Note has no transcript');
     }
 
-    const noteLanguage = note.get('language') || 'en';
-
     try {
         // Generate summary using OpenAI
-        const systemPrompt = getSummarySystemPrompt(noteLanguage);
+        const systemPrompt = getSummarySystemPrompt();
         const summary = await createChatResponse(
             transcript,
             systemPrompt,
@@ -178,11 +158,9 @@ Parse.Cloud.define('generateInsights', async (request) => {
         throw new Parse.Error(Parse.Error.INVALID_VALUE, 'Note has no transcript');
     }
 
-    const noteLanguage = note.get('language') || 'en';
-
     try {
         // Generate insights using OpenAI
-        const systemPrompt = getInsightsSystemPrompt(noteLanguage, count);
+        const systemPrompt = getInsightsSystemPrompt(count);
         const response = await createChatResponse(
             transcript,
             systemPrompt,
@@ -288,7 +266,6 @@ Parse.Cloud.define('createNoteFromScan', async (request) => {
         note.set('title', title);
         note.set('sourceType', 'scan');
         note.set('transcript', ocrResult.text);
-        note.set('language', language);
         note.set('status', 'ready');
         note.set('insights', []);
         note.set('isDeleted', false);
@@ -393,56 +370,19 @@ Parse.Cloud.define('processNote', async (request) => {
 });
 
 // Helper: Get system prompt for summary generation
-function getSummarySystemPrompt(language) {
-    const prompts = {
-        'en': `You are an expert summarizer. Create a clear, concise summary of the following transcript.
+function getSummarySystemPrompt() {
+    return `You are an expert summarizer. Create a clear, concise summary of the following transcript.
 Focus on:
 - Main topics and key points
 - Important insights and takeaways
 - Action items or recommendations if any
 
-Format the summary with clear paragraphs. Keep it informative but concise (2-4 paragraphs).`,
-
-        'ru': `Ты эксперт по созданию кратких изложений. Создай чёткое и лаконичное резюме следующей транскрипции.
-Сосредоточься на:
-- Основных темах и ключевых моментах
-- Важных выводах и идеях
-- Рекомендациях или пунктах для действий, если есть
-
-Оформи резюме чёткими абзацами. Сделай его информативным, но лаконичным (2-4 абзаца).`,
-
-        'es': `Eres un experto en resumir. Crea un resumen claro y conciso de la siguiente transcripción.
-Enfócate en:
-- Temas principales y puntos clave
-- Ideas y conclusiones importantes
-- Acciones o recomendaciones si las hay
-
-Formatea el resumen con párrafos claros. Mantenlo informativo pero conciso (2-4 párrafos).`,
-
-        'uk': `Ти експерт із створення коротких викладів. Створи чітке та лаконічне резюме наступної транскрипції.
-Зосередься на:
-- Основних темах та ключових моментах
-- Важливих висновках та ідеях
-- Рекомендаціях або пунктах для дій, якщо є
-
-Оформи резюме чіткими абзацами. Зроби його інформативним, але лаконічним (2-4 абзаци).`,
-
-        'pt': `Você é um especialista em resumir. Crie um resumo claro e conciso da seguinte transcrição.
-Foque em:
-- Tópicos principais e pontos-chave
-- Insights e conclusões importantes
-- Ações ou recomendações, se houver
-
-Formate o resumo com parágrafos claros. Mantenha-o informativo, mas conciso (2-4 parágrafos).`,
-    };
-
-    return prompts[language] || prompts['en'];
+Format the summary with clear paragraphs. Keep it informative but concise (2-4 paragraphs).`;
 }
 
 // Helper: Get system prompt for insights generation
-function getInsightsSystemPrompt(language, count) {
-    const prompts = {
-        'en': `You are an expert at extracting key insights. From the following transcript, extract exactly ${count} most important and memorable quotes or insights.
+function getInsightsSystemPrompt(count) {
+    return `You are an expert at extracting key insights. From the following transcript, extract exactly ${count} most important and memorable quotes or insights.
 
 Requirements:
 - Each insight should be a powerful, standalone statement
@@ -450,50 +390,7 @@ Requirements:
 - Make them shareable and impactful
 - Return ONLY a JSON array of strings, nothing else
 
-Example format: ["Insight 1", "Insight 2", "Insight 3"]`,
-
-        'ru': `Ты эксперт по выделению ключевых идей. Из следующей транскрипции выдели ровно ${count} самых важных и запоминающихся цитат или идей.
-
-Требования:
-- Каждая идея должна быть мощным, самодостаточным утверждением
-- Делай каждую идею краткой (максимум 1-2 предложения)
-- Они должны быть запоминающимися и впечатляющими
-- Верни ТОЛЬКО JSON массив строк, ничего больше
-
-Пример формата: ["Идея 1", "Идея 2", "Идея 3"]`,
-
-        'es': `Eres un experto en extraer ideas clave. De la siguiente transcripción, extrae exactamente ${count} citas o ideas más importantes y memorables.
-
-Requisitos:
-- Cada idea debe ser una declaración poderosa e independiente
-- Mantén cada idea concisa (máximo 1-2 oraciones)
-- Hazlas compartibles e impactantes
-- Devuelve SOLO un array JSON de strings, nada más
-
-Formato de ejemplo: ["Idea 1", "Idea 2", "Idea 3"]`,
-
-        'uk': `Ти експерт із виділення ключових ідей. З наступної транскрипції виділи рівно ${count} найважливіших і найбільш запам'ятовуваних цитат або ідей.
-
-Вимоги:
-- Кожна ідея повинна бути потужним, самодостатнім твердженням
-- Роби кожну ідею короткою (максимум 1-2 речення)
-- Вони повинні бути такими, якими хочеться поділитися
-- Поверни ТІЛЬКИ JSON масив рядків, нічого більше
-
-Приклад формату: ["Ідея 1", "Ідея 2", "Ідея 3"]`,
-
-        'pt': `Você é um especialista em extrair insights-chave. Da seguinte transcrição, extraia exatamente ${count} citações ou insights mais importantes e memoráveis.
-
-Requisitos:
-- Cada insight deve ser uma declaração poderosa e independente
-- Mantenha cada insight conciso (máximo 1-2 frases)
-- Torne-os compartilháveis e impactantes
-- Retorne APENAS um array JSON de strings, nada mais
-
-Formato de exemplo: ["Insight 1", "Insight 2", "Insight 3"]`,
-    };
-
-    return prompts[language] || prompts['en'];
+Example format: ["Insight 1", "Insight 2", "Insight 3"]`;
 }
 
 // Helper: Parse insights from AI response

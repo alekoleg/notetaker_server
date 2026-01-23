@@ -12,6 +12,9 @@ require('./cloud/sharing');
 // Cloud Functions - AI
 require('./cloud/ai');
 
+// Cloud Functions - Upload
+require('./cloud/upload');
+
 // User functions
 require('./user/user');
 

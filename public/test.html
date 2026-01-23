@@ -1,0 +1,779 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NoteTaker API Tester</title>
+    <script src="https://unpkg.com/parse/dist/parse.min.js"></script>
+    <style>
+        :root {
+            --bg: #0f0f0f;
+            --card: #1a1a1a;
+            --border: #333;
+            --primary: #E8734A;
+            --primary-hover: #d4623d;
+            --text: #e0e0e0;
+            --text-muted: #888;
+            --success: #4ade80;
+            --error: #f87171;
+        }
+        
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        h1 {
+            text-align: center;
+            margin-bottom: 10px;
+            color: var(--primary);
+        }
+        
+        .status-bar {
+            text-align: center;
+            padding: 10px;
+            margin-bottom: 20px;
+            border-radius: 8px;
+            background: var(--card);
+            border: 1px solid var(--border);
+        }
+        
+        .status-bar.connected {
+            border-color: var(--success);
+        }
+        
+        .status-bar.disconnected {
+            border-color: var(--error);
+        }
+        
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 20px;
+        }
+        
+        .card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 20px;
+        }
+        
+        .card h2 {
+            font-size: 1.1rem;
+            margin-bottom: 15px;
+            color: var(--primary);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .form-group {
+            margin-bottom: 12px;
+        }
+        
+        label {
+            display: block;
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            margin-bottom: 4px;
+        }
+        
+        input, select, textarea {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            background: var(--bg);
+            color: var(--text);
+            font-size: 0.95rem;
+        }
+        
+        input:focus, select:focus, textarea:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+        
+        textarea {
+            min-height: 80px;
+            resize: vertical;
+        }
+        
+        button {
+            width: 100%;
+            padding: 12px;
+            border: none;
+            border-radius: 6px;
+            background: var(--primary);
+            color: white;
+            font-size: 0.95rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        
+        button:hover {
+            background: var(--primary-hover);
+        }
+        
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        .result {
+            margin-top: 12px;
+            padding: 12px;
+            border-radius: 6px;
+            background: var(--bg);
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-size: 0.8rem;
+            max-height: 200px;
+            overflow: auto;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+        
+        .result.success {
+            border-left: 3px solid var(--success);
+        }
+        
+        .result.error {
+            border-left: 3px solid var(--error);
+        }
+        
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+        }
+        
+        .tab {
+            padding: 8px 16px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            background: transparent;
+            color: var(--text-muted);
+            cursor: pointer;
+            font-size: 0.85rem;
+            width: auto;
+        }
+        
+        .tab.active {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+        }
+        
+        .tab-content {
+            display: none;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        .row {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .row > * {
+            flex: 1;
+        }
+        
+        .file-input-wrapper {
+            position: relative;
+        }
+        
+        .file-input-wrapper input[type="file"] {
+            position: absolute;
+            opacity: 0;
+            width: 100%;
+            height: 100%;
+            cursor: pointer;
+        }
+        
+        .file-input-label {
+            display: block;
+            padding: 10px 12px;
+            border: 1px dashed var(--border);
+            border-radius: 6px;
+            text-align: center;
+            color: var(--text-muted);
+            cursor: pointer;
+        }
+        
+        .file-input-label:hover {
+            border-color: var(--primary);
+        }
+        
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            justify-content: center;
+        }
+        
+        .user-info .email {
+            color: var(--success);
+            font-weight: 500;
+        }
+        
+        .btn-logout {
+            padding: 6px 12px;
+            font-size: 0.8rem;
+            width: auto;
+            background: transparent;
+            border: 1px solid var(--error);
+            color: var(--error);
+        }
+        
+        .btn-logout:hover {
+            background: var(--error);
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🗒️ NoteTaker API Tester</h1>
+        
+        <div id="statusBar" class="status-bar disconnected">
+            <span id="statusText">Not connected</span>
+        </div>
+
+        <div class="grid">
+            <!-- Auth Card -->
+            <div class="card">
+                <h2>🔐 Authentication</h2>
+                <div class="tabs">
+                    <button class="tab active" onclick="showTab('login')">Login</button>
+                    <button class="tab" onclick="showTab('signup')">Sign Up</button>
+                </div>
+                
+                <div id="tab-login" class="tab-content active">
+                    <div class="form-group">
+                        <label>Email</label>
+                        <input type="email" id="loginEmail" placeholder="user@example.com">
+                    </div>
+                    <div class="form-group">
+                        <label>Password</label>
+                        <input type="password" id="loginPassword" placeholder="password">
+                    </div>
+                    <button onclick="login()">Login</button>
+                </div>
+                
+                <div id="tab-signup" class="tab-content">
+                    <div class="form-group">
+                        <label>Email</label>
+                        <input type="email" id="signupEmail" placeholder="user@example.com">
+                    </div>
+                    <div class="form-group">
+                        <label>Password</label>
+                        <input type="password" id="signupPassword" placeholder="password">
+                    </div>
+                    <button onclick="signup()">Sign Up</button>
+                </div>
+                
+                <div id="authResult" class="result" style="display:none;"></div>
+            </div>
+
+            <!-- Notes Card -->
+            <div class="card">
+                <h2>📝 Notes</h2>
+                <div class="tabs">
+                    <button class="tab active" onclick="showTab('createNote')">Create</button>
+                    <button class="tab" onclick="showTab('listNotes')">List</button>
+                </div>
+                
+                <div id="tab-createNote" class="tab-content active">
+                    <div class="form-group">
+                        <label>Title</label>
+                        <input type="text" id="noteTitle" placeholder="My Note">
+                    </div>
+                    <div class="form-group">
+                        <label>Source Type</label>
+                        <select id="noteSourceType">
+                            <option value="recording">Recording</option>
+                            <option value="upload">Upload</option>
+                            <option value="scan">Scan</option>
+                            <option value="youtube">YouTube</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Audio URL (optional)</label>
+                        <input type="text" id="noteAudioUrl" placeholder="https://...">
+                    </div>
+                    <button onclick="createNote()">Create Note</button>
+                </div>
+                
+                <div id="tab-listNotes" class="tab-content">
+                    <button onclick="listNotes()">Load Notes</button>
+                </div>
+                
+                <div id="notesResult" class="result" style="display:none;"></div>
+            </div>
+
+            <!-- File Upload Card -->
+            <div class="card">
+                <h2>📤 File Upload</h2>
+                <div class="form-group">
+                    <label>Any File (audio, image, etc.)</label>
+                    <div class="file-input-wrapper">
+                        <input type="file" id="uploadFile" onchange="updateFileName('uploadFile', 'uploadFileName')">
+                        <div class="file-input-label" id="uploadFileName">Click to select file</div>
+                    </div>
+                </div>
+                <button onclick="uploadFileOnly()">Upload File</button>
+                <div id="uploadResult" class="result" style="display:none;"></div>
+            </div>
+
+            <!-- AI Processing Card -->
+            <div class="card">
+                <h2>🤖 AI Processing</h2>
+                <div class="form-group">
+                    <label>Note ID</label>
+                    <input type="text" id="aiNoteId" placeholder="noteObjectId">
+                </div>
+                <div class="tabs">
+                    <button class="tab" onclick="transcribe()">Transcribe</button>
+                    <button class="tab" onclick="summarize()">Summary</button>
+                    <button class="tab" onclick="insights()">Insights</button>
+                    <button class="tab" onclick="processAll()">Process All</button>
+                </div>
+                <div id="aiResult" class="result" style="display:none;"></div>
+            </div>
+
+            <!-- OCR Card -->
+            <div class="card">
+                <h2>📷 OCR (Scan Text)</h2>
+                <div class="form-group">
+                    <label>Image</label>
+                    <div class="file-input-wrapper">
+                        <input type="file" id="ocrImage" accept="image/*" onchange="updateFileName('ocrImage', 'ocrFileName')">
+                        <div class="file-input-label" id="ocrFileName">Click to select image</div>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Language</label>
+                    <select id="ocrLanguage">
+                        <option value="en">English</option>
+                        <option value="ru">Russian</option>
+                        <option value="es">Spanish</option>
+                        <option value="uk">Ukrainian</option>
+                        <option value="pt">Portuguese</option>
+                    </select>
+                </div>
+                <div class="row">
+                    <button onclick="processOCR()">Extract Text</button>
+                    <button onclick="createNoteFromScan()">Create Note</button>
+                </div>
+                <div id="ocrResult" class="result" style="display:none;"></div>
+            </div>
+
+            <!-- Folders Card -->
+            <div class="card">
+                <h2>📁 Folders</h2>
+                <div class="tabs">
+                    <button class="tab active" onclick="showTab('createFolder')">Create</button>
+                    <button class="tab" onclick="showTab('listFolders')">List</button>
+                </div>
+                
+                <div id="tab-createFolder" class="tab-content active">
+                    <div class="form-group">
+                        <label>Folder Name</label>
+                        <input type="text" id="folderName" placeholder="Lectures">
+                    </div>
+                    <div class="form-group">
+                        <label>Color</label>
+                        <input type="color" id="folderColor" value="#E8734A">
+                    </div>
+                    <button onclick="createFolder()">Create Folder</button>
+                </div>
+                
+                <div id="tab-listFolders" class="tab-content">
+                    <button onclick="listFolders()">Load Folders</button>
+                </div>
+                
+                <div id="foldersResult" class="result" style="display:none;"></div>
+            </div>
+
+            <!-- Sharing Card -->
+            <div class="card">
+                <h2>🔗 Sharing</h2>
+                <div class="form-group">
+                    <label>Note ID</label>
+                    <input type="text" id="shareNoteId" placeholder="noteObjectId">
+                </div>
+                <div class="form-group">
+                    <label>Expires in (days, optional)</label>
+                    <input type="number" id="shareExpires" placeholder="7">
+                </div>
+                <div class="row">
+                    <button onclick="createShareLink()">Create Link</button>
+                    <button onclick="getShareStatus()">Check Status</button>
+                </div>
+                <div class="form-group" style="margin-top: 12px;">
+                    <label>Share Token (for public access)</label>
+                    <input type="text" id="shareToken" placeholder="abc123def456">
+                </div>
+                <button onclick="getSharedNote()">Get Shared Note</button>
+                <div id="shareResult" class="result" style="display:none;"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Configuration
+        const CONFIG = {
+            serverUrl: window.location.origin + '/api/parse',
+            appId: 'YOUR_APP_ID' // Will be updated from prompt
+        };
+
+        // Initialize Parse
+        function initParse() {
+            const appId = localStorage.getItem('parseAppId') || prompt('Enter Parse App ID:', 'BibleNote');
+            if (appId) {
+                localStorage.setItem('parseAppId', appId);
+                CONFIG.appId = appId;
+            }
+            
+            Parse.initialize(CONFIG.appId);
+            Parse.serverURL = CONFIG.serverUrl;
+            
+            checkAuth();
+        }
+
+        // Check current auth state
+        async function checkAuth() {
+            const user = Parse.User.current();
+            const statusBar = document.getElementById('statusBar');
+            const statusText = document.getElementById('statusText');
+            
+            if (user) {
+                statusBar.className = 'status-bar connected';
+                statusText.innerHTML = `
+                    <div class="user-info">
+                        Connected as <span class="email">${user.get('email') || user.get('username')}</span>
+                        <button class="btn-logout" onclick="logout()">Logout</button>
+                    </div>
+                `;
+            } else {
+                statusBar.className = 'status-bar disconnected';
+                statusText.textContent = 'Not logged in - Please authenticate';
+            }
+        }
+
+        // Tab switching
+        function showTab(tabId) {
+            const card = event.target.closest('.card');
+            card.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            card.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            event.target.classList.add('active');
+            document.getElementById('tab-' + tabId).classList.add('active');
+        }
+
+        // Show result
+        function showResult(elementId, data, isError = false) {
+            const el = document.getElementById(elementId);
+            el.style.display = 'block';
+            el.className = 'result ' + (isError ? 'error' : 'success');
+            el.textContent = typeof data === 'string' ? data : JSON.stringify(data, null, 2);
+        }
+
+        // File name updater
+        function updateFileName(inputId, labelId) {
+            const input = document.getElementById(inputId);
+            const label = document.getElementById(labelId);
+            if (input.files.length > 0) {
+                label.textContent = input.files[0].name;
+            }
+        }
+
+        // Convert file to base64
+        function fileToBase64(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.readAsDataURL(file);
+                reader.onload = () => {
+                    const base64 = reader.result.split(',')[1];
+                    resolve(base64);
+                };
+                reader.onerror = reject;
+            });
+        }
+
+        // ==================== AUTH ====================
+        
+        async function login() {
+            try {
+                const email = document.getElementById('loginEmail').value;
+                const password = document.getElementById('loginPassword').value;
+                
+                const user = await Parse.User.logIn(email, password);
+                showResult('authResult', { success: true, user: user.toJSON() });
+                checkAuth();
+            } catch (error) {
+                showResult('authResult', error.message, true);
+            }
+        }
+
+        async function signup() {
+            try {
+                const email = document.getElementById('signupEmail').value;
+                const password = document.getElementById('signupPassword').value;
+                
+                const user = new Parse.User();
+                user.set('username', email);
+                user.set('email', email);
+                user.set('password', password);
+                
+                await user.signUp();
+                showResult('authResult', { success: true, user: user.toJSON() });
+                checkAuth();
+            } catch (error) {
+                showResult('authResult', error.message, true);
+            }
+        }
+
+        async function logout() {
+            await Parse.User.logOut();
+            checkAuth();
+        }
+
+        // ==================== AUDIO UPLOAD ====================
+
+        async function uploadFileOnly() {
+            try {
+                const fileInput = document.getElementById('uploadFile');
+                if (!fileInput.files.length) throw new Error('Please select a file');
+                
+                showResult('uploadResult', 'Uploading file...');
+                
+                const file = fileInput.files[0];
+                const fileBase64 = await fileToBase64(file);
+                
+                const result = await Parse.Cloud.run('uploadFile', {
+                    fileBase64,
+                    filename: file.name
+                });
+                showResult('uploadResult', result);
+            } catch (error) {
+                showResult('uploadResult', error.message, true);
+            }
+        }
+
+        // ==================== NOTES ====================
+
+        async function createNote() {
+            try {
+                const result = await Parse.Cloud.run('createNote', {
+                    title: document.getElementById('noteTitle').value || 'Test Note',
+                    sourceType: document.getElementById('noteSourceType').value,
+                    audioFileUrl: document.getElementById('noteAudioUrl').value || undefined
+                });
+                showResult('notesResult', result);
+            } catch (error) {
+                showResult('notesResult', error.message, true);
+            }
+        }
+
+        async function listNotes() {
+            try {
+                const result = await Parse.Cloud.run('getNotes', { limit: 20 });
+                showResult('notesResult', result);
+            } catch (error) {
+                showResult('notesResult', error.message, true);
+            }
+        }
+
+        // ==================== AI ====================
+
+        async function transcribe() {
+            try {
+                const noteId = document.getElementById('aiNoteId').value;
+                if (!noteId) throw new Error('Note ID required');
+                
+                showResult('aiResult', 'Transcribing... (this may take a while)');
+                const result = await Parse.Cloud.run('transcribeAudio', { noteId });
+                showResult('aiResult', result);
+            } catch (error) {
+                showResult('aiResult', error.message, true);
+            }
+        }
+
+        async function summarize() {
+            try {
+                const noteId = document.getElementById('aiNoteId').value;
+                if (!noteId) throw new Error('Note ID required');
+                
+                showResult('aiResult', 'Generating summary...');
+                const result = await Parse.Cloud.run('generateSummary', { noteId });
+                showResult('aiResult', result);
+            } catch (error) {
+                showResult('aiResult', error.message, true);
+            }
+        }
+
+        async function insights() {
+            try {
+                const noteId = document.getElementById('aiNoteId').value;
+                if (!noteId) throw new Error('Note ID required');
+                
+                showResult('aiResult', 'Generating insights...');
+                const result = await Parse.Cloud.run('generateInsights', { noteId, count: 5 });
+                showResult('aiResult', result);
+            } catch (error) {
+                showResult('aiResult', error.message, true);
+            }
+        }
+
+        async function processAll() {
+            try {
+                const noteId = document.getElementById('aiNoteId').value;
+                if (!noteId) throw new Error('Note ID required');
+                
+                showResult('aiResult', 'Processing note (transcribe + summary + insights)...');
+                const result = await Parse.Cloud.run('processNote', { noteId });
+                showResult('aiResult', result);
+            } catch (error) {
+                showResult('aiResult', error.message, true);
+            }
+        }
+
+        // ==================== OCR ====================
+
+        async function processOCR() {
+            try {
+                const fileInput = document.getElementById('ocrImage');
+                if (!fileInput.files.length) throw new Error('Please select an image');
+                
+                showResult('ocrResult', 'Processing OCR...');
+                
+                const file = fileInput.files[0];
+                const imageBase64 = await fileToBase64(file);
+                const mimeType = file.type || 'image/jpeg';
+                const language = document.getElementById('ocrLanguage').value;
+                
+                const result = await Parse.Cloud.run('processOCR', {
+                    imageBase64,
+                    mimeType,
+                    language
+                });
+                showResult('ocrResult', result);
+            } catch (error) {
+                showResult('ocrResult', error.message, true);
+            }
+        }
+
+        async function createNoteFromScan() {
+            try {
+                const fileInput = document.getElementById('ocrImage');
+                if (!fileInput.files.length) throw new Error('Please select an image');
+                
+                showResult('ocrResult', 'Creating note from scan...');
+                
+                const file = fileInput.files[0];
+                const imageBase64 = await fileToBase64(file);
+                const mimeType = file.type || 'image/jpeg';
+                const language = document.getElementById('ocrLanguage').value;
+                
+                const result = await Parse.Cloud.run('createNoteFromScan', {
+                    imageBase64,
+                    mimeType,
+                    language,
+                    title: 'Scanned Note ' + new Date().toLocaleString()
+                });
+                showResult('ocrResult', result);
+            } catch (error) {
+                showResult('ocrResult', error.message, true);
+            }
+        }
+
+        // ==================== FOLDERS ====================
+
+        async function createFolder() {
+            try {
+                const result = await Parse.Cloud.run('createFolder', {
+                    name: document.getElementById('folderName').value || 'New Folder',
+                    color: document.getElementById('folderColor').value
+                });
+                showResult('foldersResult', result);
+            } catch (error) {
+                showResult('foldersResult', error.message, true);
+            }
+        }
+
+        async function listFolders() {
+            try {
+                const result = await Parse.Cloud.run('getFolders');
+                showResult('foldersResult', result);
+            } catch (error) {
+                showResult('foldersResult', error.message, true);
+            }
+        }
+
+        // ==================== SHARING ====================
+
+        async function createShareLink() {
+            try {
+                const noteId = document.getElementById('shareNoteId').value;
+                if (!noteId) throw new Error('Note ID required');
+                
+                const expiresInDays = parseInt(document.getElementById('shareExpires').value) || undefined;
+                
+                const result = await Parse.Cloud.run('createShareLink', {
+                    noteId,
+                    expiresInDays
+                });
+                showResult('shareResult', result);
+            } catch (error) {
+                showResult('shareResult', error.message, true);
+            }
+        }
+
+        async function getShareStatus() {
+            try {
+                const noteId = document.getElementById('shareNoteId').value;
+                if (!noteId) throw new Error('Note ID required');
+                
+                const result = await Parse.Cloud.run('getShareLinkStatus', { noteId });
+                showResult('shareResult', result);
+            } catch (error) {
+                showResult('shareResult', error.message, true);
+            }
+        }
+
+        async function getSharedNote() {
+            try {
+                const shareToken = document.getElementById('shareToken').value;
+                if (!shareToken) throw new Error('Share token required');
+                
+                const result = await Parse.Cloud.run('getSharedNote', { shareToken });
+                showResult('shareResult', result);
+            } catch (error) {
+                showResult('shareResult', error.message, true);
+            }
+        }
+
+        // Initialize on load
+        initParse();
+    </script>
+</body>
+</html>

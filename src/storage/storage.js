@@ -1,4 +1,5 @@
 const { S3Client, PutObjectCommand, HeadObjectCommand } = require('@aws-sdk/client-s3');
+const crypto = require('crypto');
 
 const s3 = new S3Client({
     endpoint: process.env.DIGITAL_SPACE_ENDPOINT,
@@ -9,26 +10,26 @@ const s3 = new S3Client({
     }
 });
 
-function getParams(content, finalPath, ACL_) { 
-    return {
-        Bucket: process.env.DIGITAL_SPACE_BUCKET_NAME,
-        Key: finalPath,
-        Body: content,
-        ACL: ACL_,
-    }
-};
 
-async function pushData(content, finalPath, public = false){
-    try {
-        const ACL_ = public ? 'public-read' : 'private';
-        console.log("Pushing data to S3");
-        var params = getParams(content, finalPath, ACL_);
-        await s3.send(new PutObjectCommand(params));
-        console.log('Файл успешно загружен!', finalPath);
-    } catch (err) {
-        console.error('Ошибка загрузки файла в S3:', err);
-        throw err;
-    }
+/**
+ * Get public URL for a file path
+ */
+function getPublicUrl(filePath) {
+    const endpoint = process.env.DIGITAL_SPACE_ENDPOINT;
+    const bucket = process.env.DIGITAL_SPACE_BUCKET_NAME;
+    const endpointHost = endpoint.replace('https://', '').replace('http://', '');
+    return `https://${bucket}.${endpointHost}/${filePath}`;
+}
+
+/**
+ * Generate unique file path in user folder
+ * Structure: users/{userId}/{timestamp}_{uniqueId}.{ext}
+ */
+function generatePath(userId, filename) {
+    const ext = filename.split('.').pop() || 'bin';
+    const uniqueId = crypto.randomBytes(8).toString('hex');
+    const timestamp = Date.now();
+    return `users/${userId}/${timestamp}_${uniqueId}.${ext}`;
 }
 
 async function isFileExists(finalPath) {
@@ -44,7 +45,39 @@ async function isFileExists(finalPath) {
     }
 }
 
+/**
+ * Upload file to S3
+ * @param {Buffer} buffer - File data
+ * @param {string} userId - User ID
+ * @param {string} filename - Original filename (used for extension)
+ * @returns {Promise<{url: string, path: string}>}
+ */
+async function uploadFile(buffer, userId, filename) {
+    const finalPath = generatePath(userId, filename);
+    
+    console.log(`[Storage] Uploading: ${finalPath}`);
+    
+    await s3.send(new PutObjectCommand({
+        Bucket: process.env.DIGITAL_SPACE_BUCKET_NAME,
+        Key: finalPath,
+        Body: buffer,
+        ACL: 'public-read',
+    }));
+    
+    const url = getPublicUrl(finalPath);
+    console.log(`[Storage] Uploaded: ${url}`);
+    
+    return { url, path: finalPath };
+}
+
+// Aliases for backward compatibility
+const uploadAudio = uploadFile;
+const uploadImage = uploadFile;
+
 module.exports = {
-    pushData,
+    uploadFile,
+    uploadAudio,
+    uploadImage,
     isFileExists,
+    getPublicUrl,
 }

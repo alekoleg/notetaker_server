@@ -23,8 +23,10 @@ const ElevenModels = {
 }
 
 // Speech-to-Text models
+// https://elevenlabs.io/docs/api-reference/speech-to-text/convert
 const STTModels = {
-    scribe_v1: 'scribe_v1', // High accuracy, supports 99 languages
+    scribe_v1: 'scribe_v1',
+    scribe_v2: 'scribe_v2', // Latest model
 };
 
 const ELEVENLABS_API_KEY = process.env.ELEVENLABS_API_KEY;
@@ -75,47 +77,63 @@ async function generateAudio({
 
 /**
  * Transcribe audio using ElevenLabs Speech-to-Text API
+ * https://elevenlabs.io/docs/api-reference/speech-to-text/convert
+ * 
  * @param {Object} options - Transcription options
- * @param {Buffer|string} options.audio - Audio buffer or file path
- * @param {string} [options.languageCode] - Language code (e.g., 'en', 'ru', 'es', 'uk', 'pt')
+ * @param {Buffer|string} [options.audio] - Audio buffer or file path
+ * @param {string} [options.audioUrl] - HTTPS URL of the audio file (max 2GB, more efficient)
+ * @param {string} [options.modelId='scribe_v2'] - Model ID (scribe_v1 or scribe_v2)
+ * @param {string} [options.languageCode] - ISO-639 language code (auto-detect if not provided)
  * @param {boolean} [options.diarize=false] - Enable speaker diarization
- * @param {number} [options.numSpeakers] - Number of speakers (for diarization)
- * @returns {Promise<Object>} Transcription result with text and metadata
+ * @param {number} [options.numSpeakers] - Max speakers (up to 32)
+ * @param {boolean} [options.tagAudioEvents=true] - Tag events like (laughter), (footsteps)
+ * @param {string} [options.timestampsGranularity='word'] - 'none', 'word', or 'character'
+ * @returns {Promise<Object>} Transcription result
  */
 async function transcribeAudio({
     audio,
+    audioUrl,
+    modelId = STTModels.scribe_v2,
     languageCode = null,
     diarize = false,
     numSpeakers = null,
+    tagAudioEvents = true,
+    timestampsGranularity = 'word',
 }) {
-    console.log('[ElevenLabs] Starting transcription...');
-
-    // Prepare audio data
-    let audioBuffer;
-    let filename = 'audio.mp3';
-
-    if (typeof audio === 'string') {
-        // It's a file path
-        audioBuffer = fs.readFileSync(audio);
-        filename = audio.split('/').pop();
-    } else if (Buffer.isBuffer(audio)) {
-        audioBuffer = audio;
-    } else {
-        throw new Error('Audio must be a Buffer or file path');
+    if (!audio && !audioUrl) {
+        throw new Error('Either audio or audioUrl must be provided');
     }
 
-    // Create form data
     const formData = new FormData();
-    formData.append('audio', audioBuffer, {
-        filename: filename,
-        contentType: 'audio/mpeg',
-    });
-    formData.append('model_id', STTModels.scribe_v1);
+    formData.append('model_id', modelId);
+    formData.append('tag_audio_events', tagAudioEvents.toString());
+    formData.append('timestamps_granularity', timestampsGranularity);
+
+    if (audioUrl) {
+        // Use cloud_storage_url - more efficient, no download needed
+        console.log('[ElevenLabs] Transcribing from URL:', audioUrl);
+        formData.append('cloud_storage_url', audioUrl);
+    } else {
+        // Use file upload
+        console.log('[ElevenLabs] Transcribing from buffer/file...');
+        let audioBuffer;
+        let filename = 'audio.mp3';
+
+        if (typeof audio === 'string') {
+            audioBuffer = fs.readFileSync(audio);
+            filename = audio.split('/').pop();
+        } else if (Buffer.isBuffer(audio)) {
+            audioBuffer = audio;
+        } else {
+            throw new Error('Audio must be a Buffer or file path');
+        }
+
+        formData.append('file', audioBuffer, { filename, contentType: 'audio/mpeg' });
+    }
 
     if (languageCode) {
         formData.append('language_code', languageCode);
     }
-
     if (diarize) {
         formData.append('diarize', 'true');
         if (numSpeakers) {
@@ -133,7 +151,7 @@ async function transcribeAudio({
                     ...formData.getHeaders(),
                 },
                 maxBodyLength: Infinity,
-                timeout: 600000, // 10 minutes timeout for long audio
+                timeout: 600000,
             }
         );
 
@@ -144,7 +162,6 @@ async function transcribeAudio({
             languageCode: response.data.language_code,
             languageProbability: response.data.language_probability,
             words: response.data.words || [],
-            utterances: response.data.utterances || [],
         };
     } catch (error) {
         console.error('[ElevenLabs] Transcription error:', error.response?.data || error.message);
@@ -152,41 +169,9 @@ async function transcribeAudio({
     }
 }
 
-/**
- * Transcribe audio from URL
- * @param {string} audioUrl - URL to download audio from
- * @param {Object} options - Transcription options
- * @returns {Promise<Object>} Transcription result
- */
-async function transcribeFromUrl({
-    audioUrl,
-    languageCode = null,
-    diarize = false,
-    numSpeakers = null,
-}) {
-    console.log('[ElevenLabs] Downloading audio from URL:', audioUrl);
-
-    // Download audio
-    const response = await axios.get(audioUrl, {
-        responseType: 'arraybuffer',
-        timeout: 300000, // 5 minutes timeout for download
-    });
-
-    const audioBuffer = Buffer.from(response.data);
-    console.log('[ElevenLabs] Audio downloaded, size:', audioBuffer.length);
-
-    return transcribeAudio({
-        audio: audioBuffer,
-        languageCode,
-        diarize,
-        numSpeakers,
-    });
-}
-
 module.exports = {
     generateAudio,
     transcribeAudio,
-    transcribeFromUrl,
     ElevenVoices,
     ElevenModels,
     STTModels,

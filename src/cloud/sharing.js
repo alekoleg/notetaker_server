@@ -131,12 +131,10 @@ Parse.Cloud.define('getSharedNote', async (request) => {
         objectId: note.id,
         title: note.get('title'),
         sourceType: note.get('sourceType'),
-        audioDuration: note.get('audioDuration'),
         transcript: note.get('transcript'),
         aiSummary: note.get('aiSummary'),
         insights: note.get('insights'),
         createdAt: note.get('createdAt'),
-        language: note.get('language')
     };
 });
 

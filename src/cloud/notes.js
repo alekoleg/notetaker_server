@@ -9,19 +9,16 @@
  * - sourceType: String (recording|youtube|upload|scan)
  * - sourceUrl: String? (для YouTube)
  * - audioFileUrl: String?
- * - audioDuration: Number (секунды)
  * - transcript: String?
  * - aiSummary: String?
  * - myNotes: String?
  * - insights: Array<String>
  * - status: String (processing|ready|error)
  * - isDeleted: Boolean
- * - language: String (en|ru|es|uk|pt)
  */
 
 const SOURCE_TYPES = ['recording', 'youtube', 'upload', 'scan'];
 const STATUSES = ['processing', 'ready', 'error'];
-const LANGUAGES = ['en', 'ru', 'es', 'uk', 'pt'];
 
 // Validate Note before save
 Parse.Cloud.beforeSave('Note', async (request) => {
@@ -51,12 +48,6 @@ Parse.Cloud.beforeSave('Note', async (request) => {
     const status = note.get('status');
     if (status && !STATUSES.includes(status)) {
         throw new Parse.Error(Parse.Error.INVALID_VALUE, `Invalid status: ${status}`);
-    }
-
-    // Validate language
-    const language = note.get('language');
-    if (language && !LANGUAGES.includes(language)) {
-        throw new Parse.Error(Parse.Error.INVALID_VALUE, `Invalid language: ${language}`);
     }
 
     // Require title
@@ -124,7 +115,7 @@ Parse.Cloud.define('createNote', async (request) => {
         throw new Parse.Error(Parse.Error.OPERATION_FORBIDDEN, 'User required');
     }
 
-    const { title, sourceType, sourceUrl, audioFileUrl, audioDuration, folderId, language } = request.params;
+    const { title, sourceType, sourceUrl, audioFileUrl, folderId } = request.params;
 
     const Note = Parse.Object.extend('Note');
     const note = new Note();
@@ -133,8 +124,6 @@ Parse.Cloud.define('createNote', async (request) => {
     note.set('sourceType', sourceType);
     note.set('sourceUrl', sourceUrl);
     note.set('audioFileUrl', audioFileUrl);
-    note.set('audioDuration', audioDuration || 0);
-    note.set('language', language || 'en');
     note.set('status', 'processing');
     note.set('insights', []);
     note.set('isDeleted', false);
@@ -205,5 +194,4 @@ Parse.Cloud.define('deleteNote', async (request) => {
 module.exports = {
     SOURCE_TYPES,
     STATUSES,
-    LANGUAGES
 };
