@@ -266,6 +266,65 @@ Parse.Cloud.run("processNote", params: ["noteId": note.objectId])
 
 ---
 
+#### `parseYouTube`
+
+Получить транскрипцию и метаданные YouTube видео.
+
+**Параметры:**
+| Параметр | Тип | Обязательный | Описание |
+|----------|-----|--------------|----------|
+| url | String | Да | YouTube URL или video ID |
+| lang | String | Нет | Язык субтитров (автоопределение если не указан) |
+
+**Ответ:**
+```json
+{
+  "transcript": "...",
+  "title": "Video Title",
+  "videoId": "dQw4w9WgXcQ",
+  "language": "en",
+  "authorName": "Channel Name",
+  "thumbnailUrl": "https://i.ytimg.com/vi/..."
+}
+```
+
+**Поддерживаемые форматы URL:**
+- `https://www.youtube.com/watch?v=VIDEO_ID`
+- `https://youtu.be/VIDEO_ID`
+- `https://www.youtube.com/embed/VIDEO_ID`
+- `https://www.youtube.com/shorts/VIDEO_ID`
+- Просто `VIDEO_ID` (11 символов)
+
+---
+
+#### `createNoteFromYouTube`
+
+Создание заметки из YouTube видео: парсинг → заметка → резюме + инсайты (в фоне).
+
+**Параметры:**
+| Параметр | Тип | Обязательный | Описание |
+|----------|-----|--------------|----------|
+| url | String | Да | YouTube URL или video ID |
+| lang | String | Нет | Язык субтитров (автоопределение если не указан) |
+| title | String | Нет | Название (по умолчанию берётся из YouTube) |
+| folderId | String | Нет | ID папки |
+
+**Ответ:**
+```json
+{
+  "note": { ...Note },
+  "youtubeMetadata": {
+    "videoId": "dQw4w9WgXcQ",
+    "authorName": "Channel Name",
+    "thumbnailUrl": "https://i.ytimg.com/vi/..."
+  }
+}
+```
+
+> Summary и insights генерируются в фоне автоматически.
+
+---
+
 ### Папки
 
 #### `getFolders`
@@ -440,6 +499,22 @@ Parse.Cloud.run("processNote", params: ["noteId": note.objectId])
 1. uploadFile(audio) → url
 2. createNote(title, sourceType: "recording", audioFileUrl: url) → note
 3. processNote(noteId) → { transcript, summary, insights }
+```
+
+### YouTube видео → Заметка
+
+```
+1. createNoteFromYouTube(url: "https://youtube.com/watch?v=...") → note
+   (summary + insights генерируются в фоне автоматически)
+```
+
+Или пошагово:
+```
+1. parseYouTube(url) → { transcript, title, videoId }
+2. createNote(title, sourceType: "youtube", sourceUrl: url) → note
+3. updateNote(noteId, transcript) или вручную установить transcript
+4. generateSummary(noteId) → { summary }
+5. generateInsights(noteId) → { insights }
 ```
 
 ### Сканирование документа

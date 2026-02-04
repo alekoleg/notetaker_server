@@ -267,7 +267,8 @@ lib/
 | `transcribeAudio`  | Транскрипция аудио                        | noteId              | transcript                  |
 | `generateSummary`  | AI-саммари                                | noteId              | summary                     |
 | `generateInsights` | Генерация Insight-карточек                | noteId              | insights[]                  |
-| `parseYouTube`     | Парсинг субтитров YouTube                 | url                 | transcript, title, duration |
+| `parseYouTube`     | ✅ Парсинг субтитров YouTube (RapidAPI)   | url, lang?          | transcript, title, videoId, authorName |
+| `createNoteFromYouTube` | ✅ Создание заметки из YouTube        | url, lang?, title?, folderId? | note, youtubeMetadata |
 | `processOCR`       | OCR для сканированного текста             | imageBase64         | text                        |
 | `createShareLink`  | Создание ссылки для шеринга               | noteId, type        | shareUrl                    |
 | `getSharedNote`    | Получение shared заметки                  | shareToken          | note data                   |

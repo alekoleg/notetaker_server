@@ -5,11 +5,14 @@
  * - generateSummary: Generate AI summary using OpenAI
  * - generateInsights: Generate insight cards using OpenAI
  * - processOCR: Process image OCR using Gemini Vision
+ * - parseYouTube: Parse YouTube video and get transcript
+ * - createNoteFromYouTube: Create note from YouTube video
  */
 
 const { transcribeAudio } = require('../services/elevenLabsService');
 const { createChatResponse } = require('../services/openAIService');
 const { extractTextFromImage } = require('../services/geminiImageService');
+const { parseYouTubeVideo } = require('../services/youtubeService');
 
 
 /**
@@ -416,5 +419,126 @@ function parseInsights(response, expectedCount) {
 
     return lines.slice(0, expectedCount);
 }
+
+/**
+ * Parse YouTube video and get transcript
+ * Expects: url, lang (optional, auto-detect if not provided)
+ * Returns: { transcript, title, videoId, language, authorName, thumbnailUrl }
+ */
+Parse.Cloud.define('parseYouTube', async (request) => {
+    const { url, lang } = request.params;
+
+    if (!url) {
+        throw new Parse.Error(Parse.Error.INVALID_VALUE, 'url is required');
+    }
+
+    console.log(`[AI] Parsing YouTube video: ${url}`);
+
+    try {
+        const result = await parseYouTubeVideo({ url, lang });
+
+        console.log(`[AI] YouTube parsed: "${result.title}", ${result.transcript.length} chars`);
+
+        return {
+            transcript: result.transcript,
+            title: result.title,
+            videoId: result.videoId,
+            language: result.language,
+            authorName: result.authorName,
+            thumbnailUrl: result.thumbnailUrl,
+        };
+    } catch (error) {
+        console.error(`[AI] YouTube parsing failed:`, error);
+        throw new Parse.Error(Parse.Error.SCRIPT_FAILED, `YouTube parsing failed: ${error.message}`);
+    }
+});
+
+/**
+ * Create note from YouTube video (parse + summary + insights)
+ * Expects: url, lang (optional, auto-detect), title (optional), folderId (optional)
+ * Returns: { note }
+ */
+Parse.Cloud.define('createNoteFromYouTube', async (request) => {
+    const user = request.user;
+    if (!user) {
+        throw new Parse.Error(Parse.Error.OPERATION_FORBIDDEN, 'User required');
+    }
+
+    const { 
+        url, 
+        lang,
+        title,
+        folderId 
+    } = request.params;
+
+    if (!url) {
+        throw new Parse.Error(Parse.Error.INVALID_VALUE, 'url is required');
+    }
+
+    console.log(`[AI] Creating note from YouTube: ${url}`);
+
+    try {
+        // Step 1: Parse YouTube video
+        const youtubeResult = await parseYouTubeVideo({ url, lang });
+
+        if (!youtubeResult.transcript || youtubeResult.transcript.trim().length === 0) {
+            throw new Error('No transcript available for this video');
+        }
+
+        // Step 2: Create note
+        const Note = Parse.Object.extend('Note');
+        const note = new Note();
+
+        note.set('title', title || youtubeResult.title);
+        note.set('sourceType', 'youtube');
+        note.set('sourceUrl', `https://www.youtube.com/watch?v=${youtubeResult.videoId}`);
+        note.set('transcript', youtubeResult.transcript);
+        note.set('status', 'ready');
+        note.set('insights', []);
+        note.set('isDeleted', false);
+        note.set('user', user);
+
+        if (folderId) {
+            const folder = Parse.Object.extend('Folder').createWithoutData(folderId);
+            note.set('folder', folder);
+        }
+
+        // Set ACL
+        const acl = new Parse.ACL(user);
+        acl.setPublicReadAccess(false);
+        acl.setPublicWriteAccess(false);
+        note.setACL(acl);
+
+        await note.save(null, { useMasterKey: true });
+
+        console.log(`[AI] Created note from YouTube: ${note.id}`);
+
+        // Step 3: Generate summary and insights in background
+        const noteId = note.id;
+        const sessionToken = request.user.getSessionToken();
+        
+        // Run async - don't wait
+        (async () => {
+            try {
+                await Parse.Cloud.run('generateSummary', { noteId }, { sessionToken });
+                await Parse.Cloud.run('generateInsights', { noteId }, { sessionToken });
+            } catch (e) {
+                console.error(`[AI] Background processing failed for note ${noteId}:`, e);
+            }
+        })();
+
+        return { 
+            note: note.toJSON(),
+            youtubeMetadata: {
+                videoId: youtubeResult.videoId,
+                authorName: youtubeResult.authorName,
+                thumbnailUrl: youtubeResult.thumbnailUrl,
+            }
+        };
+    } catch (error) {
+        console.error(`[AI] Create note from YouTube failed:`, error);
+        throw new Parse.Error(Parse.Error.SCRIPT_FAILED, `Failed to create note from YouTube: ${error.message}`);
+    }
+});
 
 module.exports = {};
