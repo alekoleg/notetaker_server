@@ -15,14 +15,17 @@ Parse.Cloud.beforeSave('Folder', async (request) => {
     const folder = request.object;
     const user = request.user;
 
-    // Require user for new folders
-    if (folder.isNew() && !user) {
+    // Require user for new folders (skip if master key used and user already set)
+    if (folder.isNew() && !user && !request.master && !folder.get('user')) {
         throw new Parse.Error(Parse.Error.OPERATION_FORBIDDEN, 'User required to create folder');
     }
 
-    // Set defaults on new folders
-    if (folder.isNew()) {
+    // Set defaults on new folders (only if not already set)
+    if (folder.isNew() && !folder.get('user')) {
         folder.set('user', user);
+    }
+
+    if (folder.isNew()) {
         folder.set('isDeleted', false);
         folder.set('order', folder.get('order') || 0);
     }

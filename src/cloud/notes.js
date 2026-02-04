@@ -25,14 +25,17 @@ Parse.Cloud.beforeSave('Note', async (request) => {
     const note = request.object;
     const user = request.user;
 
-    // Require user for new notes
-    if (note.isNew() && !user) {
+    // Require user for new notes (skip if master key used and user already set)
+    if (note.isNew() && !user && !request.master && !note.get('user')) {
         throw new Parse.Error(Parse.Error.OPERATION_FORBIDDEN, 'User required to create note');
     }
 
-    // Set user on new notes
-    if (note.isNew()) {
+    // Set user on new notes (only if not already set)
+    if (note.isNew() && !note.get('user')) {
         note.set('user', user);
+    }
+
+    if (note.isNew()) {
         note.set('isDeleted', false);
         note.set('status', note.get('status') || 'processing');
         note.set('insights', note.get('insights') || []);
