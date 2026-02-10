@@ -27,7 +27,11 @@ if (!RAPIDAPI_KEY) {
 function extractVideoId(url) {
     if (!url) return null;
     
-    // Already a video ID (11 characters)
+    try {
+        url = decodeURIComponent(url);
+    } catch (e) {
+    }
+    
     if (/^[a-zA-Z0-9_-]{11}$/.test(url)) {
         return url;
     }
@@ -68,6 +72,7 @@ async function getYouTubeTranscript({ url, lang }) {
     console.log(`[YouTubeService] Fetching transcript for video: ${videoId}${lang ? `, lang: ${lang}` : ' (auto-detect)'}`);
 
     let apiUrl = `https://${RAPIDAPI_HOST}/transcript?video_id=${videoId}`;
+    console.log(`[YouTubeService] API URL: ${apiUrl}`);
     if (lang) {
         apiUrl += `&lang=${lang}`;
     }
@@ -88,39 +93,27 @@ async function getYouTubeTranscript({ url, lang }) {
 
     const data = await response.json();
 
-    // API returns array of transcript segments with text, start, duration
-    // We need to combine them into a single transcript
     if (!data || !Array.isArray(data) || data.length === 0) {
         throw new Error('No transcript available for this video');
     }
 
-    // Check if response is an error object
-    if (data.error) {
-        throw new Error(`Transcript not available: ${data.error}`);
-    }
+    const result = data[0];
 
-    // Combine transcript segments
-    const transcriptParts = data.map(segment => {
-        // Handle different response formats
-        if (typeof segment === 'string') {
-            return segment;
-        }
-        return segment.text || segment.content || '';
-    }).filter(Boolean);
-
-    const transcript = transcriptParts.join(' ').trim();
-
-    if (!transcript) {
+    if (!result || !result.transcriptionAsText) {
         throw new Error('Transcript is empty');
     }
+
+    const transcript = result.transcriptionAsText.trim();
 
     console.log(`[YouTubeService] Transcript fetched: ${transcript.length} characters`);
 
     return {
         transcript,
         videoId,
+        title: result.title || null,
         language: lang,
-        segmentCount: data.length,
+        lengthInSeconds: result.lengthInSeconds ? parseInt(result.lengthInSeconds) : null,
+        thumbnails: result.thumbnails || [],
     };
 }
 
@@ -174,9 +167,10 @@ async function parseYouTubeVideo({ url, lang }) {
         transcript: transcriptResult.transcript,
         videoId: transcriptResult.videoId,
         language: transcriptResult.language,
-        title: metadata?.title || `YouTube Video ${transcriptResult.videoId}`,
+        title: transcriptResult.title || metadata?.title || `YouTube Video ${transcriptResult.videoId}`,
         authorName: metadata?.authorName || null,
-        thumbnailUrl: metadata?.thumbnailUrl || null,
+        thumbnailUrl: transcriptResult.thumbnails?.[0]?.url || metadata?.thumbnailUrl || null,
+        lengthInSeconds: transcriptResult.lengthInSeconds,
     };
 }
 

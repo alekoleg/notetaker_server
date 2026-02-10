@@ -3,7 +3,9 @@
   "version": "1.0.0",
   "description": "NoteTakerParseServer",
   "main": "index.js",
-  "scripts": {},
+  "scripts": {
+    "test:youtube": "node test/youtube.js"
+  },
   "keywords": [
     "note-taker"
   ],
