@@ -493,7 +493,7 @@ Parse.Cloud.define('createNoteFromYouTube', async (request) => {
         note.set('sourceType', 'youtube');
         note.set('sourceUrl', `https://www.youtube.com/watch?v=${youtubeResult.videoId}`);
         note.set('transcript', youtubeResult.transcript);
-        note.set('status', 'ready');
+        note.set('status', 'processing');
         note.set('insights', []);
         note.set('isDeleted', false);
         note.set('user', user);
@@ -503,7 +503,6 @@ Parse.Cloud.define('createNoteFromYouTube', async (request) => {
             note.set('folder', folder);
         }
 
-        // Set ACL
         const acl = new Parse.ACL(user);
         acl.setPublicReadAccess(false);
         acl.setPublicWriteAccess(false);
@@ -513,19 +512,29 @@ Parse.Cloud.define('createNoteFromYouTube', async (request) => {
 
         console.log(`[AI] Created note from YouTube: ${note.id}`);
 
-        // Step 3: Generate summary and insights in background
-        const noteId = note.id;
-        const sessionToken = request.user.getSessionToken();
-        
-        // Run async - don't wait
-        (async () => {
-            try {
-                await Parse.Cloud.run('generateSummary', { noteId }, { sessionToken });
-                await Parse.Cloud.run('generateInsights', { noteId }, { sessionToken });
-            } catch (e) {
-                console.error(`[AI] Background processing failed for note ${noteId}:`, e);
-            }
-        })();
+        const transcript = youtubeResult.transcript;
+
+        try {
+            const summaryPrompt = getSummarySystemPrompt();
+            const summary = await createChatResponse(transcript, summaryPrompt, [], false);
+            note.set('aiSummary', summary);
+            console.log(`[AI] Summary generated for YouTube note: ${note.id}`);
+        } catch (e) {
+            console.error(`[AI] Summary generation failed for YouTube note ${note.id}:`, e);
+        }
+
+        try {
+            const insightsPrompt = getInsightsSystemPrompt(5);
+            const insightsResponse = await createChatResponse(transcript, insightsPrompt, [], false);
+            const insights = parseInsights(insightsResponse, 5);
+            note.set('insights', insights);
+            console.log(`[AI] Generated ${insights.length} insights for YouTube note: ${note.id}`);
+        } catch (e) {
+            console.error(`[AI] Insights generation failed for YouTube note ${note.id}:`, e);
+        }
+
+        note.set('status', 'ready');
+        await note.save(null, { useMasterKey: true });
 
         return { 
             note: note.toJSON(),
