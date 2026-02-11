@@ -17,7 +17,7 @@ Parse.masterKey = MASTER_KEY;
 async function testParseYouTube() {
     console.log('\n=== Тест parseYouTube Cloud Function ===\n');
     
-    const url = process.argv[3] || 'https://www.youtube.com/watch?v=5ftsLKjkUmU&pp=ygUU0LHQvtC70L7RgtC90LjQutC-0LI%3D';
+    const url = process.argv[3] || 'https://www.youtube.com/watch?v=sP9zvr9vGbs';
     const lang = process.argv[4];
     
     const { extractVideoId } = require('../src/services/youtubeService');

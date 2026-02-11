@@ -12,16 +12,15 @@ const SERVER_URL = process.env.SERVER_URL
 // and the location to your Parse cloud code
 const server = new ParseServer({
   databaseURI: DB_HOST,
-  cloud: __dirname + '/src/main.js', // Provide an absolute path
+  cloud: __dirname + '/src/main.js',
   appId: process.env.APPLICATION_ID,
-  masterKey: process.env.MASTER_KEY, // Keep this key secret!
-  // fileKey: null, // Устаревший параметр, удален в Parse Server 7.0
-  serverURL: SERVER_URL, // Don't forget to change to https if needed
+  masterKey: process.env.MASTER_KEY,
+  serverURL: SERVER_URL,
   publicServerURL: SERVER_URL,
-  // Your apps name. This will appear in the subject and body of the emails that are sent.
   appName: 'NoteTaker',
+  maxUploadSize: '100mb',
   expireInactiveSessions: false,
-  sessionLength: 10 * 360 * 86400, // 10 years
+  sessionLength: 10 * 360 * 86400,
   // Обновленная конфигурация email адаптера
   // emailAdapter: {
   //   module: '@parse/simple-mailgun-adapter',
@@ -56,8 +55,8 @@ const startParseServer = async () => {
     
     // server.app.set('trust proxy', true)
     // Middleware должен быть объявлен после инициализации Parse
-    app.use(express.json());
-    app.use(express.urlencoded({ extended: true }));
+    app.use(express.json({ limit: '100mb' }));
+    app.use(express.urlencoded({ extended: true, limit: '100mb' }));
     app.use('/static', express.static(__dirname + '/public/'));
 
     // Запуск сервера
