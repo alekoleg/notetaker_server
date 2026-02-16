@@ -20,6 +20,7 @@ if (!RAPIDAPI_KEY) {
  * - https://www.youtube.com/embed/VIDEO_ID
  * - https://www.youtube.com/v/VIDEO_ID
  * - https://www.youtube.com/shorts/VIDEO_ID
+ * - https://www.youtube.com/live/VIDEO_ID
  * 
  * @param {string} url - YouTube URL
  * @returns {string|null} - Video ID or null if not found
@@ -37,7 +38,7 @@ function extractVideoId(url) {
     }
 
     const patterns = [
-        /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/|youtube\.com\/v\/|youtube\.com\/shorts\/)([a-zA-Z0-9_-]{11})/,
+        /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/|youtube\.com\/v\/|youtube\.com\/shorts\/|youtube\.com\/live\/)([a-zA-Z0-9_-]{11})/,
         /[?&]v=([a-zA-Z0-9_-]{11})/,
     ];
 
