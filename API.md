@@ -156,6 +156,7 @@ Parse.Cloud.run("processNote", params: ["noteId": note.objectId])
 | Параметр | Тип | Обязательный | Описание |
 |----------|-----|--------------|----------|
 | noteId | String | Да | ID заметки с audioFileUrl |
+| language | String | Нет | Язык транскрипции (`en`, `ru`, `uk`, `es`, `pt`), если нужен явный выбор |
 
 **Ответ:**
 ```json
@@ -174,6 +175,7 @@ Parse.Cloud.run("processNote", params: ["noteId": note.objectId])
 | Параметр | Тип | Обязательный | Описание |
 |----------|-----|--------------|----------|
 | noteId | String | Да | ID заметки с transcript |
+| language | String | Нет | Локаль ответа (`en`, `ru`, `uk`, `es`, `pt`) |
 
 **Ответ:**
 ```json
@@ -193,6 +195,7 @@ Parse.Cloud.run("processNote", params: ["noteId": note.objectId])
 |----------|-----|--------------|----------|
 | noteId | String | Да | ID заметки с transcript |
 | count | Number | Нет | Количество инсайтов (по умолчанию 5) |
+| language | String | Нет | Локаль ответа (`en`, `ru`, `uk`, `es`, `pt`) |
 
 **Ответ:**
 ```json
@@ -209,6 +212,7 @@ Parse.Cloud.run("processNote", params: ["noteId": note.objectId])
 | Параметр | Тип | Обязательный | Описание |
 |----------|-----|--------------|----------|
 | noteId | String | Да | ID заметки |
+| language | String | Нет | Локаль для транскрипции/резюме/инсайтов (`en`, `ru`, `uk`, `es`, `pt`) |
 
 **Ответ:**
 ```json
@@ -232,7 +236,7 @@ Parse.Cloud.run("processNote", params: ["noteId": note.objectId])
 |----------|-----|--------------|----------|
 | imageBase64 | String | Да | Изображение в base64 |
 | mimeType | String | Нет | MIME-тип (по умолчанию `image/jpeg`) |
-| language | String | Нет | Язык текста (по умолчанию `en`) |
+| language | String | Нет | Язык текста (`en`, `ru`, `uk`, `es`, `pt`, по умолчанию `en`) |
 
 **Ответ:**
 ```json
@@ -253,8 +257,8 @@ Parse.Cloud.run("processNote", params: ["noteId": note.objectId])
 |----------|-----|--------------|----------|
 | imageBase64 | String | Да | Изображение в base64 |
 | mimeType | String | Нет | MIME-тип (по умолчанию `image/jpeg`) |
-| language | String | Нет | Язык текста (по умолчанию `en`) |
-| title | String | Нет | Название (по умолчанию "Scanned Note") |
+| language | String | Нет | Язык текста (`en`, `ru`, `uk`, `es`, `pt`, по умолчанию `en`) |
+| title | String | Нет | Название (по умолчанию локализованное "Scanned Note") |
 | folderId | String | Нет | ID папки |
 
 **Ответ:**
@@ -307,6 +311,7 @@ Parse.Cloud.run("processNote", params: ["noteId": note.objectId])
 |----------|-----|--------------|----------|
 | url | String | Да | YouTube URL или video ID |
 | lang | String | Нет | Язык субтитров (автоопределение если не указан) |
+| language | String | Нет | Локаль резюме/инсайтов (`en`, `ru`, `uk`, `es`, `pt`) |
 | title | String | Нет | Название (по умолчанию берётся из YouTube) |
 | folderId | String | Нет | ID папки |
 
