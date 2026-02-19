@@ -38,7 +38,7 @@ const server = new ParseServer({
 });
 
 i18n.configure({
-  locales: ['en', 'ru', 'uk', 'es'],
+  locales: ['en', 'ru', 'uk', 'es', 'pt'],
   directory: __dirname + '/locales',
   defaultLocale: 'en',
 });

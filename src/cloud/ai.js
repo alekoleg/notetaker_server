@@ -13,6 +13,7 @@ const { transcribeAudio } = require('../services/elevenLabsService');
 const { createChatResponse } = require('../services/openAIService');
 const { extractTextFromImage } = require('../services/geminiImageService');
 const { parseYouTubeVideo } = require('../services/youtubeService');
+const { normalizeLocale, getLocaleFromParams, t } = require('../services/localizationService');
 
 
 /**
@@ -21,11 +22,10 @@ const { parseYouTubeVideo } = require('../services/youtubeService');
  * Returns: { transcript, languageCode }
  */
 Parse.Cloud.define('transcribeAudio', async (request) => {
-    
-
+    const locale = getLocaleFromParams(request.params);
     const { noteId, language } = request.params;
     if (!noteId) {
-        throw new Parse.Error(Parse.Error.INVALID_VALUE, 'noteId is required');
+        throw new Parse.Error(Parse.Error.INVALID_VALUE, t(locale, 'errors.noteIdRequired'));
     }
 
     console.log(`[AI] Starting transcription for note: ${noteId}`);
@@ -35,12 +35,12 @@ Parse.Cloud.define('transcribeAudio', async (request) => {
     const note = await query.get(noteId, { useMasterKey: true });
 
     if (!note) {
-        throw new Parse.Error(Parse.Error.OBJECT_NOT_FOUND, 'Note not found');
+        throw new Parse.Error(Parse.Error.OBJECT_NOT_FOUND, t(locale, 'errors.noteNotFound'));
     }
 
     const audioFileUrl = note.get('audioFileUrl');
     if (!audioFileUrl) {
-        throw new Parse.Error(Parse.Error.INVALID_VALUE, 'Note has no audio file');
+        throw new Parse.Error(Parse.Error.INVALID_VALUE, t(locale, 'errors.noteHasNoAudioFile'));
     }
 
     // Update status to processing
@@ -51,6 +51,7 @@ Parse.Cloud.define('transcribeAudio', async (request) => {
         // Transcribe audio
         const result = await transcribeAudio({
             audioUrl: audioFileUrl,
+            languageCode: language ? normalizeLocale(language) : null,
         });
 
         // Update note with transcript
@@ -70,24 +71,28 @@ Parse.Cloud.define('transcribeAudio', async (request) => {
         note.set('status', 'error');
         await note.save(null, { useMasterKey: true });
 
-        throw new Parse.Error(Parse.Error.SCRIPT_FAILED, `Transcription failed: ${error.message}`);
+        throw new Parse.Error(
+            Parse.Error.SCRIPT_FAILED,
+            t(locale, 'errors.transcriptionFailed', { error: error.message })
+        );
     }
 });
 
 /**
  * Generate AI summary for a note
- * Expects: noteId
+ * Expects: noteId, language (optional, locale for generation)
  * Returns: { summary }
  */
 Parse.Cloud.define('generateSummary', async (request) => {
+    const locale = getLocaleFromParams(request.params);
     const user = request.user;
     if (!user) {
-        throw new Parse.Error(Parse.Error.OPERATION_FORBIDDEN, 'User required');
+        throw new Parse.Error(Parse.Error.OPERATION_FORBIDDEN, t(locale, 'errors.userRequired'));
     }
 
     const { noteId } = request.params;
     if (!noteId) {
-        throw new Parse.Error(Parse.Error.INVALID_VALUE, 'noteId is required');
+        throw new Parse.Error(Parse.Error.INVALID_VALUE, t(locale, 'errors.noteIdRequired'));
     }
 
     console.log(`[AI] Generating summary for note: ${noteId}`);
@@ -98,17 +103,17 @@ Parse.Cloud.define('generateSummary', async (request) => {
     const note = await query.get(noteId, { useMasterKey: true });
 
     if (!note) {
-        throw new Parse.Error(Parse.Error.OBJECT_NOT_FOUND, 'Note not found');
+        throw new Parse.Error(Parse.Error.OBJECT_NOT_FOUND, t(locale, 'errors.noteNotFound'));
     }
 
     const transcript = note.get('transcript');
     if (!transcript) {
-        throw new Parse.Error(Parse.Error.INVALID_VALUE, 'Note has no transcript');
+        throw new Parse.Error(Parse.Error.INVALID_VALUE, t(locale, 'errors.noteHasNoTranscript'));
     }
 
     try {
         // Generate summary using OpenAI
-        const systemPrompt = getSummarySystemPrompt();
+        const systemPrompt = getSummarySystemPrompt(locale);
         const summary = await createChatResponse(
             transcript,
             systemPrompt,
@@ -125,24 +130,28 @@ Parse.Cloud.define('generateSummary', async (request) => {
         return { summary };
     } catch (error) {
         console.error(`[AI] Summary generation failed for note: ${noteId}`, error);
-        throw new Parse.Error(Parse.Error.SCRIPT_FAILED, `Summary generation failed: ${error.message}`);
+        throw new Parse.Error(
+            Parse.Error.SCRIPT_FAILED,
+            t(locale, 'errors.summaryGenerationFailed', { error: error.message })
+        );
     }
 });
 
 /**
  * Generate insight cards for a note
- * Expects: noteId, count (optional, default 5)
+ * Expects: noteId, count (optional, default 5), language (optional, locale for generation)
  * Returns: { insights: string[] }
  */
 Parse.Cloud.define('generateInsights', async (request) => {
+    const locale = getLocaleFromParams(request.params);
     const user = request.user;
     if (!user) {
-        throw new Parse.Error(Parse.Error.OPERATION_FORBIDDEN, 'User required');
+        throw new Parse.Error(Parse.Error.OPERATION_FORBIDDEN, t(locale, 'errors.userRequired'));
     }
 
     const { noteId, count = 5 } = request.params;
     if (!noteId) {
-        throw new Parse.Error(Parse.Error.INVALID_VALUE, 'noteId is required');
+        throw new Parse.Error(Parse.Error.INVALID_VALUE, t(locale, 'errors.noteIdRequired'));
     }
 
     console.log(`[AI] Generating ${count} insights for note: ${noteId}`);
@@ -153,17 +162,17 @@ Parse.Cloud.define('generateInsights', async (request) => {
     const note = await query.get(noteId, { useMasterKey: true });
 
     if (!note) {
-        throw new Parse.Error(Parse.Error.OBJECT_NOT_FOUND, 'Note not found');
+        throw new Parse.Error(Parse.Error.OBJECT_NOT_FOUND, t(locale, 'errors.noteNotFound'));
     }
 
     const transcript = note.get('transcript');
     if (!transcript) {
-        throw new Parse.Error(Parse.Error.INVALID_VALUE, 'Note has no transcript');
+        throw new Parse.Error(Parse.Error.INVALID_VALUE, t(locale, 'errors.noteHasNoTranscript'));
     }
 
     try {
         // Generate insights using OpenAI
-        const systemPrompt = getInsightsSystemPrompt(count);
+        const systemPrompt = getInsightsSystemPrompt(locale, count);
         const response = await createChatResponse(
             transcript,
             systemPrompt,
@@ -183,7 +192,10 @@ Parse.Cloud.define('generateInsights', async (request) => {
         return { insights };
     } catch (error) {
         console.error(`[AI] Insights generation failed for note: ${noteId}`, error);
-        throw new Parse.Error(Parse.Error.SCRIPT_FAILED, `Insights generation failed: ${error.message}`);
+        throw new Parse.Error(
+            Parse.Error.SCRIPT_FAILED,
+            t(locale, 'errors.insightsGenerationFailed', { error: error.message })
+        );
     }
 });
 
@@ -193,24 +205,26 @@ Parse.Cloud.define('generateInsights', async (request) => {
  * Returns: { text }
  */
 Parse.Cloud.define('processOCR', async (request) => {
+    const locale = getLocaleFromParams(request.params);
     const user = request.user;
     if (!user) {
-        throw new Parse.Error(Parse.Error.OPERATION_FORBIDDEN, 'User required');
+        throw new Parse.Error(Parse.Error.OPERATION_FORBIDDEN, t(locale, 'errors.userRequired'));
     }
 
     const { imageBase64, mimeType = 'image/jpeg', language = 'en' } = request.params;
+    const ocrLanguage = normalizeLocale(language);
 
     if (!imageBase64) {
-        throw new Parse.Error(Parse.Error.INVALID_VALUE, 'imageBase64 is required');
+        throw new Parse.Error(Parse.Error.INVALID_VALUE, t(locale, 'errors.imageBase64Required'));
     }
 
-    console.log(`[AI] Processing OCR, language: ${language}`);
+    console.log(`[AI] Processing OCR, language: ${ocrLanguage}`);
 
     try {
         const result = await extractTextFromImage({
             imageBase64,
             mimeType,
-            language,
+            language: ocrLanguage,
         });
 
         console.log(`[AI] OCR completed, extracted ${result.text.length} characters`);
@@ -221,7 +235,10 @@ Parse.Cloud.define('processOCR', async (request) => {
         };
     } catch (error) {
         console.error(`[AI] OCR failed:`, error);
-        throw new Parse.Error(Parse.Error.SCRIPT_FAILED, `OCR failed: ${error.message}`);
+        throw new Parse.Error(
+            Parse.Error.SCRIPT_FAILED,
+            t(locale, 'errors.ocrFailed', { error: error.message })
+        );
     }
 });
 
@@ -231,42 +248,44 @@ Parse.Cloud.define('processOCR', async (request) => {
  * Returns: { note }
  */
 Parse.Cloud.define('createNoteFromScan', async (request) => {
+    const locale = getLocaleFromParams(request.params);
     const user = request.user;
     if (!user) {
-        throw new Parse.Error(Parse.Error.OPERATION_FORBIDDEN, 'User required');
+        throw new Parse.Error(Parse.Error.OPERATION_FORBIDDEN, t(locale, 'errors.userRequired'));
     }
 
     const { 
         imageBase64, 
         mimeType = 'image/jpeg', 
         language = 'en',
-        title = 'Scanned Note',
+        title,
         folderId 
     } = request.params;
+    const ocrLanguage = normalizeLocale(language);
 
     if (!imageBase64) {
-        throw new Parse.Error(Parse.Error.INVALID_VALUE, 'imageBase64 is required');
+        throw new Parse.Error(Parse.Error.INVALID_VALUE, t(locale, 'errors.imageBase64Required'));
     }
 
-    console.log(`[AI] Creating note from scan, language: ${language}`);
+    console.log(`[AI] Creating note from scan, language: ${ocrLanguage}`);
 
     try {
         // Step 1: Extract text via OCR
         const ocrResult = await extractTextFromImage({
             imageBase64,
             mimeType,
-            language,
+            language: ocrLanguage,
         });
 
         if (!ocrResult.text || ocrResult.text.trim().length === 0) {
-            throw new Error('No text could be extracted from the image');
+            throw new Error(t(locale, 'errors.noTextExtracted'));
         }
 
         // Step 2: Create note
         const Note = Parse.Object.extend('Note');
         const note = new Note();
 
-        note.set('title', title);
+        note.set('title', title || t(locale, 'titles.scannedNote'));
         note.set('sourceType', 'scan');
         note.set('transcript', ocrResult.text);
         note.set('status', 'ready');
@@ -296,8 +315,8 @@ Parse.Cloud.define('createNoteFromScan', async (request) => {
         // Run async - don't wait
         (async () => {
             try {
-                await Parse.Cloud.run('generateSummary', { noteId }, { sessionToken });
-                await Parse.Cloud.run('generateInsights', { noteId }, { sessionToken });
+                await Parse.Cloud.run('generateSummary', { noteId, language: locale }, { sessionToken });
+                await Parse.Cloud.run('generateInsights', { noteId, language: locale }, { sessionToken });
             } catch (e) {
                 console.error(`[AI] Background processing failed for note ${noteId}:`, e);
             }
@@ -306,24 +325,28 @@ Parse.Cloud.define('createNoteFromScan', async (request) => {
         return { note: note.toJSON() };
     } catch (error) {
         console.error(`[AI] Create note from scan failed:`, error);
-        throw new Parse.Error(Parse.Error.SCRIPT_FAILED, `Failed to create note from scan: ${error.message}`);
+        throw new Parse.Error(
+            Parse.Error.SCRIPT_FAILED,
+            t(locale, 'errors.createNoteFromScanFailed', { error: error.message })
+        );
     }
 });
 
 /**
  * Process all AI tasks for a note (transcribe + summary + insights)
- * Expects: noteId
+ * Expects: noteId, language (optional, locale for generation)
  * Returns: { transcript, summary, insights }
  */
 Parse.Cloud.define('processNote', async (request) => {
+    const locale = getLocaleFromParams(request.params);
     const user = request.user;
     if (!user) {
-        throw new Parse.Error(Parse.Error.OPERATION_FORBIDDEN, 'User required');
+        throw new Parse.Error(Parse.Error.OPERATION_FORBIDDEN, t(locale, 'errors.userRequired'));
     }
 
-    const { noteId } = request.params;
+    const { noteId, language } = request.params;
     if (!noteId) {
-        throw new Parse.Error(Parse.Error.INVALID_VALUE, 'noteId is required');
+        throw new Parse.Error(Parse.Error.INVALID_VALUE, t(locale, 'errors.noteIdRequired'));
     }
 
     console.log(`[AI] Processing all AI tasks for note: ${noteId}`);
@@ -334,7 +357,7 @@ Parse.Cloud.define('processNote', async (request) => {
     const note = await query.get(noteId, { useMasterKey: true });
 
     if (!note) {
-        throw new Parse.Error(Parse.Error.OBJECT_NOT_FOUND, 'Note not found');
+        throw new Parse.Error(Parse.Error.OBJECT_NOT_FOUND, t(locale, 'errors.noteNotFound'));
     }
 
     const result = {
@@ -346,7 +369,11 @@ Parse.Cloud.define('processNote', async (request) => {
     try {
         // Step 1: Transcribe if needed
         if (!note.get('transcript') && note.get('audioFileUrl')) {
-            const transcribeResult = await Parse.Cloud.run('transcribeAudio', { noteId }, { sessionToken: request.user.getSessionToken() });
+            const transcribeResult = await Parse.Cloud.run(
+                'transcribeAudio',
+                language ? { noteId, language } : { noteId },
+                { sessionToken: request.user.getSessionToken() }
+            );
             result.transcript = transcribeResult.transcript;
         } else {
             result.transcript = note.get('transcript');
@@ -354,13 +381,21 @@ Parse.Cloud.define('processNote', async (request) => {
 
         // Step 2: Generate summary
         if (result.transcript) {
-            const summaryResult = await Parse.Cloud.run('generateSummary', { noteId }, { sessionToken: request.user.getSessionToken() });
+            const summaryResult = await Parse.Cloud.run(
+                'generateSummary',
+                language ? { noteId, language } : { noteId },
+                { sessionToken: request.user.getSessionToken() }
+            );
             result.summary = summaryResult.summary;
         }
 
         // Step 3: Generate insights
         if (result.transcript) {
-            const insightsResult = await Parse.Cloud.run('generateInsights', { noteId }, { sessionToken: request.user.getSessionToken() });
+            const insightsResult = await Parse.Cloud.run(
+                'generateInsights',
+                language ? { noteId, language } : { noteId },
+                { sessionToken: request.user.getSessionToken() }
+            );
             result.insights = insightsResult.insights;
         }
 
@@ -373,27 +408,13 @@ Parse.Cloud.define('processNote', async (request) => {
 });
 
 // Helper: Get system prompt for summary generation
-function getSummarySystemPrompt() {
-    return `You are an expert summarizer. Create a clear, concise summary of the following transcript.
-Focus on:
-- Main topics and key points
-- Important insights and takeaways
-- Action items or recommendations if any
-
-Format the summary with clear paragraphs. Keep it informative but concise (2-4 paragraphs).`;
+function getSummarySystemPrompt(locale) {
+    return t(locale, 'prompts.summary');
 }
 
 // Helper: Get system prompt for insights generation
-function getInsightsSystemPrompt(count) {
-    return `You are an expert at extracting key insights. From the following transcript, extract exactly ${count} most important and memorable quotes or insights.
-
-Requirements:
-- Each insight should be a powerful, standalone statement
-- Keep each insight concise (1-2 sentences max)
-- Make them shareable and impactful
-- Return ONLY a JSON array of strings, nothing else
-
-Example format: ["Insight 1", "Insight 2", "Insight 3"]`;
+function getInsightsSystemPrompt(locale, count) {
+    return t(locale, 'prompts.insights', { count });
 }
 
 // Helper: Parse insights from AI response
@@ -426,10 +447,11 @@ function parseInsights(response, expectedCount) {
  * Returns: { transcript, title, videoId, language, authorName, thumbnailUrl }
  */
 Parse.Cloud.define('parseYouTube', async (request) => {
+    const locale = getLocaleFromParams(request.params);
     const { url, lang } = request.params;
 
     if (!url) {
-        throw new Parse.Error(Parse.Error.INVALID_VALUE, 'url is required');
+        throw new Parse.Error(Parse.Error.INVALID_VALUE, t(locale, 'errors.urlRequired'));
     }
 
     console.log(`[AI] Parsing YouTube video: ${url}`);
@@ -449,40 +471,46 @@ Parse.Cloud.define('parseYouTube', async (request) => {
         };
     } catch (error) {
         console.error(`[AI] YouTube parsing failed:`, error);
-        throw new Parse.Error(Parse.Error.SCRIPT_FAILED, `YouTube parsing failed: ${error.message}`);
+        throw new Parse.Error(
+            Parse.Error.SCRIPT_FAILED,
+            t(locale, 'errors.youtubeParsingFailed', { error: error.message })
+        );
     }
 });
 
 /**
  * Create note from YouTube video (parse + summary + insights)
- * Expects: url, lang (optional, auto-detect), title (optional), folderId (optional)
+ * Expects: url, lang (optional, auto-detect), language (optional, locale), title (optional), folderId (optional)
  * Returns: { note }
  */
 Parse.Cloud.define('createNoteFromYouTube', async (request) => {
+    const locale = getLocaleFromParams(request.params);
     const user = request.user;
     if (!user) {
-        throw new Parse.Error(Parse.Error.OPERATION_FORBIDDEN, 'User required');
+        throw new Parse.Error(Parse.Error.OPERATION_FORBIDDEN, t(locale, 'errors.userRequired'));
     }
 
     const { 
         url, 
         lang,
+        language,
         title,
         folderId 
     } = request.params;
+    const subtitleLang = lang || language;
 
     if (!url) {
-        throw new Parse.Error(Parse.Error.INVALID_VALUE, 'url is required');
+        throw new Parse.Error(Parse.Error.INVALID_VALUE, t(locale, 'errors.urlRequired'));
     }
 
     console.log(`[AI] Creating note from YouTube: ${url}`);
 
     try {
         // Step 1: Parse YouTube video
-        const youtubeResult = await parseYouTubeVideo({ url, lang });
+        const youtubeResult = await parseYouTubeVideo({ url, lang: subtitleLang });
 
         if (!youtubeResult.transcript || youtubeResult.transcript.trim().length === 0) {
-            throw new Error('No transcript available for this video');
+            throw new Error(t(locale, 'errors.noTranscriptAvailable'));
         }
 
         // Step 2: Create note
@@ -515,7 +543,7 @@ Parse.Cloud.define('createNoteFromYouTube', async (request) => {
         const transcript = youtubeResult.transcript;
 
         try {
-            const summaryPrompt = getSummarySystemPrompt();
+            const summaryPrompt = getSummarySystemPrompt(locale);
             const summary = await createChatResponse(transcript, summaryPrompt, [], false);
             note.set('aiSummary', summary);
             console.log(`[AI] Summary generated for YouTube note: ${note.id}`);
@@ -524,7 +552,7 @@ Parse.Cloud.define('createNoteFromYouTube', async (request) => {
         }
 
         try {
-            const insightsPrompt = getInsightsSystemPrompt(5);
+            const insightsPrompt = getInsightsSystemPrompt(locale, 5);
             const insightsResponse = await createChatResponse(transcript, insightsPrompt, [], false);
             const insights = parseInsights(insightsResponse, 5);
             note.set('insights', insights);
@@ -546,7 +574,10 @@ Parse.Cloud.define('createNoteFromYouTube', async (request) => {
         };
     } catch (error) {
         console.error(`[AI] Create note from YouTube failed:`, error);
-        throw new Parse.Error(Parse.Error.SCRIPT_FAILED, `Failed to create note from YouTube: ${error.message}`);
+        throw new Parse.Error(
+            Parse.Error.SCRIPT_FAILED,
+            t(locale, 'errors.createNoteFromYouTubeFailed', { error: error.message })
+        );
     }
 });
 
