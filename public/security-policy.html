@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset='utf-8'>
+  <meta name='viewport' content='width=device-width, initial-scale=1'>
+  <title>Security Policy</title>
+  <style>
+    body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; padding: 1.5em; max-width: 860px; margin: 0 auto; color: #222; line-height: 1.55; }
+    h1 { font-size: 1.6em; margin-bottom: 0.2em; }
+    h2 { font-size: 1.15em; margin-top: 1.6em; }
+    p, li { font-size: 0.98em; }
+    code { background: #f4f4f4; padding: 0 4px; border-radius: 3px; }
+    .muted { color: #666; font-size: 0.9em; }
+    a { color: #1a73e8; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+  <h1>Security Policy</h1>
+  <p class="muted">Last updated: 2026-05-07</p>
+
+  <p>
+    We take the security of our service, our users' data, and our systems seriously.
+    This document describes the security practices we follow and explains how
+    researchers, users, and partners can responsibly report security issues to us.
+  </p>
+
+  <h2>Scope</h2>
+  <p>
+    This policy applies to the Bible Note mobile application, the public API,
+    backend infrastructure operated by us, and any official websites under our
+    control. Third-party services used by the application are governed by their
+    own security and privacy terms.
+  </p>
+
+  <h2>Data Protection</h2>
+  <ul>
+    <li>All network traffic between the application and our servers is encrypted in transit using TLS 1.2 or higher.</li>
+    <li>User credentials are never stored in plain text. Authentication tokens are issued and validated server-side.</li>
+    <li>Sensitive data at rest is stored on managed infrastructure with encryption enabled at the storage layer.</li>
+    <li>We follow the principle of least privilege for access to production systems and user data.</li>
+    <li>We collect only the data required to operate the service and retain it no longer than necessary.</li>
+  </ul>
+
+  <h2>Access Control</h2>
+  <ul>
+    <li>Access to production systems is limited to authorized personnel and protected by multi-factor authentication.</li>
+    <li>Administrative actions are logged and reviewed.</li>
+    <li>API access is authenticated and rate-limited to mitigate abuse.</li>
+  </ul>
+
+  <h2>Application Security</h2>
+  <ul>
+    <li>We follow secure development practices including code review, dependency management, and static analysis.</li>
+    <li>Third-party dependencies are kept up to date and monitored for known vulnerabilities.</li>
+    <li>User-generated content is validated and sanitized before processing or storage.</li>
+    <li>Build and release pipelines are protected and produce signed artifacts for distribution.</li>
+  </ul>
+
+  <h2>Infrastructure Security</h2>
+  <ul>
+    <li>Production services run on hardened, regularly patched systems.</li>
+    <li>Network access to backend services is restricted by firewalls and security groups.</li>
+    <li>Backups are performed regularly and stored securely to support disaster recovery.</li>
+    <li>Logs are retained for monitoring, auditing, and incident investigation.</li>
+  </ul>
+
+  <h2>Incident Response</h2>
+  <p>
+    In the event of a confirmed security incident affecting user data, we will:
+  </p>
+  <ul>
+    <li>Investigate the issue and contain the impact as quickly as possible.</li>
+    <li>Remediate the root cause and verify that affected systems are secure.</li>
+    <li>Notify affected users and, where required, the relevant authorities in accordance with applicable law.</li>
+  </ul>
+
+  <h2>Reporting a Vulnerability</h2>
+  <p>
+    If you believe you have found a security vulnerability in our service, we
+    encourage you to report it to us privately so that we can address it before
+    any details are publicly disclosed.
+  </p>
+  <p>
+    Please send your report to <a href="mailto:security@biblenote.app">security@biblenote.app</a>
+    and include the following information where possible:
+  </p>
+  <ul>
+    <li>A clear description of the issue and its potential impact.</li>
+    <li>Steps to reproduce, including any required accounts, requests, or payloads.</li>
+    <li>The affected version, endpoint, or platform (iOS, Android, API).</li>
+    <li>Your name or handle if you would like to be credited.</li>
+  </ul>
+
+  <h2>Responsible Disclosure Guidelines</h2>
+  <p>We ask security researchers to:</p>
+  <ul>
+    <li>Give us a reasonable amount of time to investigate and remediate the issue before any public disclosure.</li>
+    <li>Avoid privacy violations, data destruction, service disruption, and degradation of user experience.</li>
+    <li>Only interact with accounts that you own or for which you have explicit permission from the account owner.</li>
+    <li>Not exploit a vulnerability beyond what is necessary to demonstrate the issue.</li>
+  </ul>
+  <p>
+    We will not pursue legal action against researchers who act in good faith and follow these guidelines.
+  </p>
+
+  <h2>Out of Scope</h2>
+  <ul>
+    <li>Reports based solely on automated scanner output without a demonstrated impact.</li>
+    <li>Missing security headers, cookie flags, or best-practice recommendations without a working exploit.</li>
+    <li>Denial-of-service attacks, social engineering, and physical attacks.</li>
+    <li>Vulnerabilities in third-party services not operated by us.</li>
+  </ul>
+
+  <h2>User Responsibilities</h2>
+  <p>To help keep your account and data safe, we recommend that you:</p>
+  <ul>
+    <li>Use a strong, unique password and keep your authentication credentials private.</li>
+    <li>Keep your operating system and the application updated to the latest version.</li>
+    <li>Install the application only from official stores (App Store, Google Play).</li>
+    <li>Contact us immediately if you suspect unauthorized access to your account.</li>
+  </ul>
+
+  <h2>Changes to This Policy</h2>
+  <p>
+    We may update this Security Policy from time to time to reflect changes in
+    our practices, technology, or legal requirements. Updates will be published
+    on this page with a new "Last updated" date.
+  </p>
+
+  <h2>Contact</h2>
+  <p>
+    For security-related questions or reports, please contact us at
+    <a href="mailto:security@biblenote.app">security@biblenote.app</a>.
+  </p>
+</body>
+</html>
