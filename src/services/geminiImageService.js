@@ -1,4 +1,5 @@
 const { GoogleGenAI } = require("@google/genai");
+const { normalizeLocale, t } = require('./localizationService');
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
@@ -28,15 +29,8 @@ async function generateImage(prompt) {
 async function extractTextFromImage({ imageBase64, mimeType = 'image/jpeg', language = 'en' }) {
     console.log('[Gemini] Starting OCR processing...');
 
-    const languagePrompts = {
-        'en': 'Extract all text from this image. Return only the extracted text, preserving the original formatting and structure as much as possible.',
-        'ru': 'Извлеки весь текст из этого изображения. Верни только извлечённый текст, сохраняя оригинальное форматирование и структуру насколько возможно.',
-        'es': 'Extrae todo el texto de esta imagen. Devuelve solo el texto extraído, preservando el formato y la estructura original tanto como sea posible.',
-        'uk': 'Витягни весь текст з цього зображення. Поверни тільки витягнутий текст, зберігаючи оригінальне форматування та структуру наскільки можливо.',
-        'pt': 'Extraia todo o texto desta imagem. Retorne apenas o texto extraído, preservando a formatação e estrutura original o máximo possível.',
-    };
-
-    const prompt = languagePrompts[language] || languagePrompts['en'];
+    const locale = normalizeLocale(language);
+    const prompt = t(locale, 'prompts.ocr');
 
     try {
         const response = await ai.models.generateContent({
@@ -64,7 +58,7 @@ async function extractTextFromImage({ imageBase64, mimeType = 'image/jpeg', lang
 
         return {
             text: extractedText.trim(),
-            language: language,
+            language: locale,
         };
     } catch (error) {
         console.error('[Gemini] OCR error:', error.message);

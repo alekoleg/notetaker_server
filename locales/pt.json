@@ -1,0 +1,28 @@
+{
+  "errors": {
+    "userRequired": "Usuário obrigatório",
+    "noteIdRequired": "noteId é obrigatório",
+    "noteNotFound": "Nota não encontrada",
+    "noteHasNoAudioFile": "A nota não possui arquivo de áudio",
+    "transcriptionFailed": "Falha na transcrição: {error}",
+    "noteHasNoTranscript": "A nota não possui transcrição",
+    "summaryGenerationFailed": "Falha ao gerar resumo: {error}",
+    "insightsGenerationFailed": "Falha ao gerar insights: {error}",
+    "imageBase64Required": "imageBase64 é obrigatório",
+    "ocrFailed": "Falha no OCR: {error}",
+    "noTextExtracted": "Não foi possível extrair texto da imagem",
+    "createNoteFromScanFailed": "Falha ao criar nota a partir do escaneamento: {error}",
+    "urlRequired": "url é obrigatório",
+    "youtubeParsingFailed": "Falha ao processar YouTube: {error}",
+    "noTranscriptAvailable": "Não há transcrição disponível para este vídeo",
+    "createNoteFromYouTubeFailed": "Falha ao criar nota a partir do YouTube: {error}"
+  },
+  "titles": {
+    "scannedNote": "Nota digitalizada"
+  },
+  "prompts": {
+    "ocr": "Extraia todo o texto desta imagem. Retorne apenas o texto extraído, preservando a formatação e estrutura original o máximo possível.",
+    "summary": "Você é um especialista em resumir conteúdo. Crie um resumo claro e conciso da transcrição a seguir.\nFoque em:\n- Tópicos principais e pontos-chave\n- Insights e conclusões importantes\n- Ações ou recomendações, se houver\n\nFormate o resumo com parágrafos claros. Mantenha-o informativo e conciso (2-4 parágrafos).",
+    "insights": "Você é especialista em extrair insights-chave. A partir da transcrição a seguir, extraia exatamente {count} citações ou insights mais importantes e memoráveis.\n\nRequisitos:\n- Cada insight deve ser uma afirmação forte e independente\n- Cada insight deve ser conciso (máximo de 1-2 frases)\n- Torne-os compartilháveis e impactantes\n- Retorne APENAS um array JSON de strings, sem texto adicional\n\nFormato de exemplo: [\"Insight 1\", \"Insight 2\", \"Insight 3\"]"
+  }
+}
