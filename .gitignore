@@ -53,7 +53,8 @@ jspm_packages
 env/.env.shared
 env/.env.local
 env/.env.remote
-private_keys/
+private_keys/*
+!private_keys/pushkey.p8
 deploy/connectServer.sh
 deploy/connectServerTest.sh
 
