@@ -20,7 +20,14 @@
   "titles": {
     "scannedNote": "Nota digitalizada"
   },
+  "push": {
+    "noteReady": {
+      "title": "Nota pronta",
+      "body": "\"{title}\" está pronta para visualizar"
+    }
+  },
   "prompts": {
+    "title": "Você está criando o título de uma nota. Com base na transcrição, retorne APENAS um título curto e específico de 3 a 7 palavras. Sem aspas, sem pontuação final, sem prefixos. Em português.",
     "ocr": "Extraia todo o texto desta imagem. Retorne apenas o texto extraído, preservando a formatação e estrutura original o máximo possível.",
     "summary": "Você é um especialista em resumir conteúdo. Crie um resumo claro e conciso da transcrição a seguir.\nFoque em:\n- Tópicos principais e pontos-chave\n- Insights e conclusões importantes\n- Ações ou recomendações, se houver\n\nFormate o resumo com parágrafos claros. Mantenha-o informativo e conciso (2-4 parágrafos).",
     "insights": "Você é especialista em extrair insights-chave. A partir da transcrição a seguir, extraia exatamente {count} citações ou insights mais importantes e memoráveis.\n\nRequisitos:\n- Cada insight deve ser uma afirmação forte e independente\n- Cada insight deve ser conciso (máximo de 1-2 frases)\n- Torne-os compartilháveis e impactantes\n- Retorne APENAS um array JSON de strings, sem texto adicional\n\nFormato de exemplo: [\"Insight 1\", \"Insight 2\", \"Insight 3\"]"

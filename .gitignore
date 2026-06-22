@@ -49,6 +49,11 @@ jspm_packages
 
 .DS_Store
 .env
+.env.remote
+env/.env.shared
+env/.env.local
+env/.env.remote
+private_keys/
 deploy/connectServer.sh
 deploy/connectServerTest.sh
 

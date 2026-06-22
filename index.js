@@ -8,6 +8,36 @@ const app = express();
 const DB_HOST = process.env.DB_HOST
 const SERVER_URL = process.env.SERVER_URL
 
+const pushConfig = {};
+
+if (
+  process.env.APNS_KEY_PATH &&
+  process.env.APNS_KEY_ID &&
+  process.env.APNS_TEAM_ID &&
+  process.env.IOS_BUNDLE_ID
+) {
+  pushConfig.ios = {
+    token: {
+      key: process.env.APNS_KEY_PATH,
+      keyId: process.env.APNS_KEY_ID,
+      teamId: process.env.APNS_TEAM_ID,
+    },
+    topic: process.env.IOS_BUNDLE_ID,
+    production: process.env.APNS_PRODUCTION === 'true',
+  };
+}
+
+if (process.env.FCM_SERVICE_ACCOUNT_PATH) {
+  pushConfig.android = {
+    firebaseServiceAccount: process.env.FCM_SERVICE_ACCOUNT_PATH,
+  };
+}
+
+const isPushConfigured = Object.keys(pushConfig).length > 0;
+if (!isPushConfigured) {
+  console.warn('[Push] Credentials not configured — push notifications disabled');
+}
+
 // Specify the connection string for your mongodb database
 // and the location to your Parse cloud code
 const server = new ParseServer({
@@ -21,6 +51,7 @@ const server = new ParseServer({
   maxUploadSize: '100mb',
   expireInactiveSessions: false,
   sessionLength: 10 * 360 * 86400,
+  ...(isPushConfigured ? { push: pushConfig } : {}),
   // Обновленная конфигурация email адаптера
   // emailAdapter: {
   //   module: '@parse/simple-mailgun-adapter',

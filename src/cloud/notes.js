@@ -111,6 +111,24 @@ Parse.Cloud.define('getNotes', async (request) => {
     return notes.map(n => n.toJSON());
 });
 
+// Get single note by id
+Parse.Cloud.define('getNote', async (request) => {
+    const user = request.user;
+    if (!user) {
+        throw new Parse.Error(Parse.Error.OPERATION_FORBIDDEN, 'User required');
+    }
+
+    const { noteId } = request.params;
+    if (!noteId) {
+        throw new Parse.Error(Parse.Error.INVALID_VALUE, 'noteId is required');
+    }
+
+    const query = new Parse.Query('Note');
+    query.equalTo('user', user);
+    const note = await query.get(noteId, { useMasterKey: true });
+    return note.toJSON();
+});
+
 // Create note
 Parse.Cloud.define('createNote', async (request) => {
     const user = request.user;
@@ -118,15 +136,17 @@ Parse.Cloud.define('createNote', async (request) => {
         throw new Parse.Error(Parse.Error.OPERATION_FORBIDDEN, 'User required');
     }
 
-    const { title, sourceType, sourceUrl, audioFileUrl, folderId } = request.params;
+    const { title, sourceType, sourceUrl, audioFileUrl, imageFileUrl, folderId, autoTitle = true } = request.params;
 
     const Note = Parse.Object.extend('Note');
     const note = new Note();
 
     note.set('title', title || 'Untitled Note');
+    note.set('autoTitle', autoTitle);
     note.set('sourceType', sourceType);
     note.set('sourceUrl', sourceUrl);
     note.set('audioFileUrl', audioFileUrl);
+    note.set('imageFileUrl', imageFileUrl);
     note.set('status', 'processing');
     note.set('insights', []);
     note.set('isDeleted', false);
@@ -160,7 +180,10 @@ Parse.Cloud.define('updateNote', async (request) => {
     query.equalTo('user', user);
     const note = await query.get(noteId, { useMasterKey: true });
 
-    if (title !== undefined) note.set('title', title);
+    if (title !== undefined) {
+        note.set('title', title);
+        note.set('autoTitle', false);
+    }
     if (myNotes !== undefined) note.set('myNotes', myNotes);
     if (folderId !== undefined) {
         if (folderId) {

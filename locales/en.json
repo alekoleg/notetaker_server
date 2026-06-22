@@ -20,7 +20,14 @@
   "titles": {
     "scannedNote": "Scanned Note"
   },
+  "push": {
+    "noteReady": {
+      "title": "Note ready",
+      "body": "\"{title}\" is ready to view"
+    }
+  },
   "prompts": {
+    "title": "You are titling a note. Based on the transcript, return ONLY a short, specific title of 3 to 7 words. No quotes, no trailing punctuation, no prefixes. Use the same language as this instruction.",
     "ocr": "Extract all text from this image. Return only the extracted text, preserving the original formatting and structure as much as possible.",
     "summary": "You are an expert summarizer. Create a clear, concise summary of the following transcript.\nFocus on:\n- Main topics and key points\n- Important insights and takeaways\n- Action items or recommendations if any\n\nFormat the summary with clear paragraphs. Keep it informative but concise (2-4 paragraphs).",
     "insights": "You are an expert at extracting key insights. From the following transcript, extract exactly {count} most important and memorable quotes or insights.\n\nRequirements:\n- Each insight should be a powerful, standalone statement\n- Keep each insight concise (1-2 sentences max)\n- Make them shareable and impactful\n- Return ONLY a JSON array of strings, nothing else\n\nExample format: [\"Insight 1\", \"Insight 2\", \"Insight 3\"]"

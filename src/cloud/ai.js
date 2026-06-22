@@ -11,9 +11,10 @@
 
 const { transcribeAudio } = require('../services/elevenLabsService');
 const { createChatResponse } = require('../services/openAIService');
-const { extractTextFromImage } = require('../services/geminiImageService');
+const { extractTextFromImage, extractTextFromUrl } = require('../services/geminiImageService');
 const { parseYouTubeVideo } = require('../services/youtubeService');
 const { normalizeLocale, getLocaleFromParams, t } = require('../services/localizationService');
+const { notifyNoteReady } = require('../services/pushService');
 
 
 /**
@@ -200,6 +201,7 @@ Parse.Cloud.define('generateInsights', async (request) => {
 });
 
 /**
+ * @deprecated LEGACY — only for app version <= 1.0.3. New clients use createNote + processNote.
  * Process OCR for scanned text image
  * Expects: imageBase64, mimeType (optional), language (optional)
  * Returns: { text }
@@ -243,6 +245,7 @@ Parse.Cloud.define('processOCR', async (request) => {
 });
 
 /**
+ * @deprecated LEGACY — only for app version <= 1.0.3. New clients use createNote + processNote.
  * Create note from scanned text (OCR + summary + insights)
  * Expects: imageBase64, mimeType (optional), language (optional), title (optional), folderId (optional)
  * Returns: { note }
@@ -317,6 +320,7 @@ Parse.Cloud.define('createNoteFromScan', async (request) => {
             try {
                 await Parse.Cloud.run('generateSummary', { noteId, language: locale }, { sessionToken });
                 await Parse.Cloud.run('generateInsights', { noteId, language: locale }, { sessionToken });
+                await notifyNoteReady(note);
             } catch (e) {
                 console.error(`[AI] Background processing failed for note ${noteId}:`, e);
             }
@@ -364,20 +368,63 @@ Parse.Cloud.define('processNote', async (request) => {
         transcript: null,
         summary: null,
         insights: null,
+        title: null,
     };
 
+    let youtubeTitle = null;
+
     try {
-        // Step 1: Transcribe if needed
+        // Step 1: Obtain transcript (audio transcription or YouTube parsing).
+        // Content language is auto-detected; `language` is reserved for generation (summary/insights).
         if (!note.get('transcript') && note.get('audioFileUrl')) {
             const transcribeResult = await Parse.Cloud.run(
                 'transcribeAudio',
-                language ? { noteId, language } : { noteId },
+                { noteId },
                 { sessionToken: request.user.getSessionToken() }
             );
             result.transcript = transcribeResult.transcript;
+        } else if (!note.get('transcript') && note.get('sourceUrl')) {
+            const youtubeResult = await parseYouTubeVideo({
+                url: note.get('sourceUrl'),
+            });
+            if (!youtubeResult.transcript || youtubeResult.transcript.trim().length === 0) {
+                throw new Error(t(locale, 'errors.noTranscriptAvailable'));
+            }
+            youtubeTitle = youtubeResult.title;
+            note.set('transcript', youtubeResult.transcript);
+            await note.save(null, { useMasterKey: true });
+            result.transcript = youtubeResult.transcript;
+        } else if (!note.get('transcript') && note.get('imageFileUrl')) {
+            const ocrResult = await extractTextFromUrl({
+                imageUrl: note.get('imageFileUrl'),
+                language: language || locale,
+            });
+            if (!ocrResult.text || ocrResult.text.trim().length === 0) {
+                throw new Error(t(locale, 'errors.noTextExtracted'));
+            }
+            note.set('transcript', ocrResult.text);
+            await note.save(null, { useMasterKey: true });
+            result.transcript = ocrResult.text;
         } else {
             result.transcript = note.get('transcript');
         }
+
+        // Step 1.5: Derive title for auto-titled notes (YouTube metadata or AI from transcript)
+        if (note.get('autoTitle') !== false) {
+            let derivedTitle = youtubeTitle;
+            if (!derivedTitle && result.transcript) {
+                try {
+                    derivedTitle = await generateTitle(result.transcript, language || locale);
+                } catch (e) {
+                    console.error(`[AI] Title generation failed for note ${noteId}:`, e);
+                }
+            }
+            if (derivedTitle) {
+                note.set('title', derivedTitle);
+                await note.save(null, { useMasterKey: true });
+            }
+        }
+        result.title = note.get('title');
 
         // Step 2: Generate summary
         if (result.transcript) {
@@ -399,7 +446,13 @@ Parse.Cloud.define('processNote', async (request) => {
             result.insights = insightsResult.insights;
         }
 
+        note.set('status', 'ready');
+        await note.save(null, { useMasterKey: true });
+
         console.log(`[AI] All AI tasks completed for note: ${noteId}`);
+
+        await notifyNoteReady(note);
+
         return result;
     } catch (error) {
         console.error(`[AI] Processing failed for note: ${noteId}`, error);
@@ -415,6 +468,17 @@ function getSummarySystemPrompt(locale) {
 // Helper: Get system prompt for insights generation
 function getInsightsSystemPrompt(locale, count) {
     return t(locale, 'prompts.insights', { count });
+}
+
+// Helper: Generate a concise note title from transcript
+async function generateTitle(transcript, locale) {
+    const prompt = t(locale, 'prompts.title');
+    const raw = await createChatResponse(transcript.slice(0, 3000), prompt, [], false);
+    let title = (raw || '').trim().replace(/^["'«»\s]+|["'«»\s]+$/g, '');
+    if (title.length > 80) {
+        title = title.slice(0, 80).trim();
+    }
+    return title;
 }
 
 // Helper: Parse insights from AI response
@@ -479,6 +543,7 @@ Parse.Cloud.define('parseYouTube', async (request) => {
 });
 
 /**
+ * @deprecated LEGACY — only for app version <= 1.0.3. New clients use createNote + processNote.
  * Create note from YouTube video (parse + summary + insights)
  * Expects: url, lang (optional, auto-detect), language (optional, locale), title (optional), folderId (optional)
  * Returns: { note }
@@ -563,6 +628,8 @@ Parse.Cloud.define('createNoteFromYouTube', async (request) => {
 
         note.set('status', 'ready');
         await note.save(null, { useMasterKey: true });
+
+        await notifyNoteReady(note);
 
         return { 
             note: note.toJSON(),
