@@ -22,10 +22,16 @@ async function notifyNoteReady(note) {
             return;
         }
 
+        console.log(`[Push] Installations for note ${note.id}:`, installations.map(i => ({
+            deviceType: i.get('deviceType'),
+            badge: i.get('badge'),
+            tokenPrefix: (i.get('deviceToken') || '').slice(0, 10) + '...',
+        })));
+
         const locale = normalizeLocale(installations[0].get('localeIdentifier'));
         const title = note.get('title') || '';
 
-        await Parse.Push.send(
+        const result = await Parse.Push.send(
             {
                 where: installQuery,
                 data: {
@@ -41,7 +47,7 @@ async function notifyNoteReady(note) {
             { useMasterKey: true }
         );
 
-        console.log(`[Push] Sent note-ready push for note ${note.id} to ${installations.length} installation(s)`);
+        console.log(`[Push] Sent note-ready push for note ${note.id} to ${installations.length} installation(s)`, JSON.stringify(result));
     } catch (error) {
         console.error(`[Push] Failed to send note-ready push for note ${note && note.id}:`, error);
     }
