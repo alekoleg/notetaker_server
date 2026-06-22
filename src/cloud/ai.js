@@ -456,6 +456,8 @@ Parse.Cloud.define('processNote', async (request) => {
         return result;
     } catch (error) {
         console.error(`[AI] Processing failed for note: ${noteId}`, error);
+        note.set('status', 'error');
+        await note.save(null, { useMasterKey: true });
         throw error;
     }
 });
